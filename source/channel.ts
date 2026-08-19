@@ -1,9 +1,10 @@
 import type {
   Channel as CoreChannel,
   ChannelMessage,
-  Cleanup
+  Cleanup,
+  ServerServiceDefinition
 } from "@phreshos/core"
-import { endpoint, type EndpointReference } from "./domain.js"
+import { endpoint, type Endpoint, type EndpointReference } from "./domain.js"
 import Events from "./events.js"
 import wire from "./wire.js"
 import { disableCurrentService, enableCurrentService } from "./service.js"
@@ -14,7 +15,7 @@ export type Answerer<Payload = unknown, Result = undefined> = (
 ) => Result | Promise<Result>
 
 /** Events and questions explicitly accepted by the current Server. */
-export interface Channel<Events extends object = {}> extends CoreChannel<Events> {
+export interface Channel<Events extends object = {}> extends CoreChannel<Events, Endpoint, ServerServiceDefinition> {
   /** Registers one answerer; omitting its return produces `undefined`. */
   answer<Payload = unknown, Result = undefined>(event: string, answerer: Answerer<Payload, Result>): Cleanup
 }
@@ -33,7 +34,7 @@ class ServerChannel extends Events {
     wire.send("end-host", "emit", event, payload)
   }
 
-  public async enableService(name: string) { await enableCurrentService(name) }
+  public async enableService(definition: ServerServiceDefinition) { await enableCurrentService(definition) }
   public async disableService() { await disableCurrentService() }
 
   public answer(event: string, answerer: Answerer): Cleanup {

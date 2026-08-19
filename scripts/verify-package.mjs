@@ -85,6 +85,7 @@ const service = host.service({ program: "counter", endpoint: "server", name: "st
 assert.equal(service, host.service({ program: "counter", endpoint: "server", name: "state" }))
 assert(service instanceof ServiceHandler)
 assert(service instanceof ServerServiceHandler)
+assert.equal(typeof service.docs, "function")
 `
   )
   execFileSync(process.execPath, [join(consumer, "runtime.mjs")], {
@@ -112,7 +113,8 @@ const theme: Promise<Readonly<ThemeProperties>> = host.theme.snapshot()
 const counter: ServerServiceHandler<CounterEvents> = host.service<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
 const counterStop = counter.channel.subscribe("change", value => void value)
 const counterAnswer: Promise<number> = counter.channel.ask<number>("value")
-const expose: Promise<void> = current.enableService("state")
+const counterDocs: Promise<string | null> = counter.docs()
+const expose: Promise<void> = current.enableService({ name: "state", docs: "# Counter" })
 const stop = host.subscribe("endpointStop", endpoint => {
   if (endpoint instanceof Server) void endpoint.process()
   if (endpoint instanceof Client) void endpoint.window.surface.set()
@@ -124,6 +126,7 @@ void theme
 void counter
 void counterStop
 void counterAnswer
+void counterDocs
 void expose
 void stop
 void client

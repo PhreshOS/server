@@ -5,6 +5,7 @@ import {
   type ClientServiceChannel,
   type ClientServiceHandler,
   type ServerServiceChannel,
+  type ServerServiceDefinition,
   type ServerServiceHandler,
   type ServiceHandler,
   type ServiceKey
@@ -78,6 +79,11 @@ class ServerHandler<EventsMap extends object = {}> extends ServerServiceBase {
     const answer = await wire.request(["service-disabled", this.key]) as [boolean]
     return answer[0]
   }
+
+  public async docs() {
+    const answer = await wire.request(["service-docs", this.key]) as [string | null]
+    return answer[0]
+  }
 }
 
 class ClientHandler<EventsMap extends object = {}> extends ClientServiceBase {
@@ -116,8 +122,8 @@ export function service(key: ServiceKey): ServiceHandler {
   }) as unknown as ServiceHandler
 }
 
-export async function enableCurrentService(name: string) {
-  await wire.request(["enable-service", name])
+export async function enableCurrentService(definition: ServerServiceDefinition) {
+  await wire.request(["enable-service", definition])
 }
 
 export async function disableCurrentService() {

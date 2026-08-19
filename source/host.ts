@@ -83,9 +83,6 @@ type Description = Readonly<{
   /** Short human-readable Program description. */
   description?: string
 
-  /** Path to the Program-authored API entry document. */
-  apiDocs?: string
-
   /** Absolute validated PNG source used to derive the Program's hosted icon sizes. */
   icon?: string
 

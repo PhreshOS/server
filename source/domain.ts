@@ -222,11 +222,6 @@ class ProgramHandle extends ProgramBase {
     return process(answer[0])
   }
 
-  public async apiDocs() {
-    const answer = await wire.request(["api-docs", this.address]) as [string | null]
-    return answer[0]
-  }
-
   public async icon(size: ProgramIconSize = "medium") {
     const answer = await wire.request(["icon", this.address, size]) as [number[]]
     return new Blob([Uint8Array.from(answer[0])], { type: "image/png" })

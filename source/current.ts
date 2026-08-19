@@ -1,4 +1,4 @@
-import type { Channel as CoreChannel, LaunchClient } from "@phreshos/core"
+import type { LaunchClient } from "@phreshos/core"
 import { channel, type Answerer, type Channel } from "./channel.js"
 import {
   Client,
@@ -21,7 +21,7 @@ import { endpointService } from "./service.js"
 export type CurrentClient<Events extends object = {}> = Client<Events>
 
 /** Current Server context: its inbound Channel, owner hierarchy, and paired Client. */
-export interface Current<Events extends object = {}> extends CoreChannel<Events>, Pick<Server, "service"> {
+export interface Current<Events extends object = {}> extends Channel<Events>, Pick<Server, "service"> {
   /** The same Client handle exposed by the current Process. */
   readonly client: CurrentClient
 
