@@ -77,9 +77,9 @@ lifetime. Each Client permanently owns one synchronous `window` capability,
 whose operations address that Client's current live presentation state.
 
 An `under` or `over` Client Window may own an authoritative host Surface through
-`client.window.surface`. `snapshot()` explicitly reads its current settings,
-`subscribe("change", listener)` receives only future complete replacements,
-and `set()` or `remove()` changes the server-owned value. Radius may be a
+`client.window.surface`. It is command-only: `set()` or `remove()` changes the
+server-owned value, while Program endpoints cannot read or subscribe to it.
+Radius may be a
 nonnegative pixel number, `"full"`, or a semantic `ScaleLevel` resolved by the
 desktop against its current Theme. Ordinary `window` and system `wallpaper`
 layers reject Surface mutations.

@@ -100,13 +100,15 @@ setTimeout(() => process.exit(0), 25)
 const theme: Promise<Readonly<ThemeProperties>> = host.theme.snapshot()
 const stop = host.subscribe("endpointStop", endpoint => {
   if (endpoint instanceof Server) void endpoint.process()
-  if (endpoint instanceof Client) void endpoint.window.surface.snapshot()
+  if (endpoint instanceof Client) void endpoint.window.surface.set()
 })
 const client: Client = current.client
+const start: Promise<void> = client.start({ title: "Prepared title" })
 
 void theme
 void stop
 void client
+void start
 `
   )
   writeFileSync(

@@ -458,30 +458,8 @@ class WindowHandle extends Events {
   public async raise() { await wire.request(["raise", await this.target()]) }
 }
 
-class WindowSurfaceHandle extends Events {
-  public constructor(private readonly target: WindowTarget) {
-    super(
-      (event, listener, impossible) => {
-        if (event !== "change") {
-          impossible?.(new Error(`A Window Surface has no "${String(event)}" event`))
-          return () => undefined
-        }
-        return deferred(target, subject => wire.on("host-end", "surface", (...values) => {
-          const message = unscoped(subject, values)
-          if (message) listener(message[0])
-        }, subject, impossible), impossible)
-      },
-      observer => deferred(target, subject => wire.on("host-end", "surface", (...values) => {
-        const message = unscoped(subject, values)
-        if (message) observer("change", message[0])
-      }, subject))
-    )
-  }
-
-  public async snapshot() {
-    const answer = await wire.request(["window", await this.target()]) as [WindowRecord]
-    return answer[0].surface
-  }
+class WindowSurfaceHandle {
+  public constructor(private readonly target: WindowTarget) {}
 
   public async set(settings: WindowSurfaceSettings = {}) { await wire.request(["surfaceSet", await this.target(), settings]) }
   public async remove() { await wire.request(["surfaceRemove", await this.target()]) }
