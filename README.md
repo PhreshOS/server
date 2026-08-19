@@ -76,9 +76,9 @@ retained handle. Server and Client handles remain stable for their Process
 lifetime. Each Client permanently owns one synchronous `window` capability,
 whose operations address that Client's current live presentation state.
 
-Surface presentation is deliberately absent from the Server SDK. It belongs to
-one live iframe representation and is requested through the Client's
-`current.window.surface`; a Server may coordinate Program state, but it neither
+Local representation and Surface presentation are deliberately absent from the
+Server SDK. They belong to one live iframe and are requested through the
+Client's `current.localWindow`; a Server may coordinate Program state, but it neither
 owns nor controls the resulting desktop material.
 
 The package provides two contextual runtime entry points:
