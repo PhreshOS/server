@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import type { Cleanup, Outcome } from "@phreshos/core"
+import type { Cleanup, Outcome, ServiceKey } from "@phreshos/core"
 import Deadline from "./deadline.js"
 import { defaultTimeout } from "./events.js"
 import type { HandleAddress } from "./domain.js"
@@ -217,6 +217,24 @@ class Wire {
       stop()
       this.impossible.delete(subscription)
       this.send("end-host", "unfollow", subscription)
+    })
+  }
+
+  /** Follow one exact service lifecycle or application event route. */
+  public followService(
+    key: ServiceKey,
+    scope: "lifecycle" | "channel",
+    event: string | null,
+    handler: Handler
+  ): Cleanup {
+    const subscription = randomUUID()
+    const stop = this.on("service-event", subscription, handler)
+
+    this.send("end-host", "service-follow", subscription, key, scope, event)
+
+    return once(() => {
+      stop()
+      this.send("end-host", "service-unfollow", subscription)
     })
   }
 

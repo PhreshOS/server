@@ -11,15 +11,17 @@ import {
   type Process,
   type ProcessRecord,
   type Program,
-  type ProgramRecord
+  type ProgramRecord,
+  type Server
 } from "./domain.js"
 import wire from "./wire.js"
+import { endpointService } from "./service.js"
 
 /** The current Process's canonical Client handle. */
 export type CurrentClient<Events extends object = {}> = Client<Events>
 
 /** Current Server context: its inbound Channel, owner hierarchy, and paired Client. */
-export interface Current<Events extends object = {}> extends CoreChannel<Events> {
+export interface Current<Events extends object = {}> extends CoreChannel<Events>, Pick<Server, "service"> {
   /** The same Client handle exposed by the current Process. */
   readonly client: CurrentClient
 
@@ -40,6 +42,7 @@ export interface Current<Events extends object = {}> extends CoreChannel<Events>
 
   /** Stops the current Server; rejects when it is the final live Endpoint. */
   stop(): Promise<void>
+
 }
 
 const ClientBase = Client as unknown as new () => object
@@ -69,6 +72,7 @@ class CurrentClientHandle extends ClientBase {
   }
 
   public async stop() { await wire.request(["stop-endpoint", undefined, "client"]) }
+  public service<ServiceEvents extends object = {}>() { return endpointService<ServiceEvents>(null, "client") }
 
 }
 
@@ -123,6 +127,7 @@ class ServerCurrent {
   }
 
   public async stop() { await wire.request(["stop-current"]) }
+  public service<ServiceEvents extends object = {}>() { return endpointService<ServiceEvents>(null, "server") }
 }
 
 function bindChannel(target: object, source: Channel) {
@@ -131,7 +136,9 @@ function bindChannel(target: object, source: Channel) {
     subscribe: source.subscribe.bind(source),
     waitFor: source.waitFor.bind(source),
     events: source.events.bind(source),
-    observe: source.observe.bind(source)
+    observe: source.observe.bind(source),
+    enableService: source.enableService.bind(source),
+    disableService: source.disableService.bind(source)
   })
 }
 

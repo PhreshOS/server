@@ -6,6 +6,7 @@ import type {
 import { endpoint, type EndpointReference } from "./domain.js"
 import Events from "./events.js"
 import wire from "./wire.js"
+import { disableCurrentService, enableCurrentService } from "./service.js"
 
 /** Handles one question addressed to the current Server. */
 export type Answerer<Payload = unknown, Result = undefined> = (
@@ -31,6 +32,9 @@ class ServerChannel extends Events {
   public publish(event: string, payload: unknown = undefined) {
     wire.send("end-host", "emit", event, payload)
   }
+
+  public async enableService(name: string) { await enableCurrentService(name) }
+  public async disableService() { await disableCurrentService() }
 
   public answer(event: string, answerer: Answerer): Cleanup {
     return wire.answer("end-end", event, value => answerer(message(value)))

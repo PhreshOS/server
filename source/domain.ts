@@ -31,6 +31,7 @@ import { area, sql, store, type ServerArea } from "./storage.js"
 import startup, { type ProgramStartup } from "./startup.js"
 import permissions from "./permissions.js"
 import wire from "./wire.js"
+import { endpointService } from "./service.js"
 
 export interface HandleAddress {
   identity: string
@@ -375,6 +376,7 @@ class ServerHandle extends ServerBase {
 
   public async start() { await wire.request(["start-endpoint", this.owner.address, "server"]) }
   public async stop() { await wire.request(["stop-endpoint", this.owner.address, "server"]) }
+  public service<ServiceEvents extends object = {}>() { return endpointService<ServiceEvents>(this.owner.address, "server") }
 
   public async waitReady(timeout?: number) {
     await wire.request(["wait-ready", this.owner.address], timeout)
@@ -428,6 +430,7 @@ class ClientHandle extends ClientBase {
   }
 
   public async stop() { await wire.request(["stop-endpoint", this.owner.address, "client"]) }
+  public service<ServiceEvents extends object = {}>() { return endpointService<ServiceEvents>(this.owner.address, "client") }
 
 }
 

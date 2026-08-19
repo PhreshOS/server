@@ -5,6 +5,8 @@ import type {
   Layer,
   Position,
   ServedFile,
+  ClientServiceHandler,
+  ServerServiceHandler,
   Size,
   Subscribable,
   ThemeProperties,
@@ -27,6 +29,7 @@ import serve from "./served.js"
 import ServerTheme from "./theme.js"
 import { ServerDesktopWallpaper, ServerSignInWallpaper } from "./wallpaper.js"
 import wire from "./wire.js"
+import { service as serviceHandle } from "./service.js"
 
 /** Resolved production description for a Program's Server. */
 export type ServerDescription = Readonly<{
@@ -178,6 +181,20 @@ export interface Host<Events extends object = {}> extends Subscribable<HostEvent
 
   /** Returns the live Process with the given runtime identity. */
   getProcess(identity: string): Promise<Process>
+
+  /** Returns a stable handle for one exact Server service identity. */
+  service<ServiceEvents extends object = {}>(key: {
+    program: string
+    endpoint: "server"
+    name: string
+  }): ServerServiceHandler<ServiceEvents>
+
+  /** Returns a stable handle for one exact Client service identity. */
+  service<ServiceEvents extends object = {}>(key: {
+    program: string
+    endpoint: "client"
+    name: string
+  }): ClientServiceHandler<ServiceEvents>
 }
 
 class ServerHost extends Events {
@@ -219,6 +236,12 @@ class ServerHost extends Events {
   public async getProcess(identity: string) {
     const answer = await wire.request(["process", identity]) as [ProcessRecord]
     return process(answer[0])
+  }
+
+  public service<ServiceEvents extends object = {}>(key: { program: string, endpoint: "server", name: string }): ServerServiceHandler<ServiceEvents>
+  public service<ServiceEvents extends object = {}>(key: { program: string, endpoint: "client", name: string }): ClientServiceHandler<ServiceEvents>
+  public service(key: { program: string, endpoint: "server" | "client", name: string }) {
+    return serviceHandle(key)
   }
 }
 

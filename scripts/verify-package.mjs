@@ -66,7 +66,7 @@ try {
     join(consumer, "runtime.mjs"),
     `import assert from "node:assert/strict"
 import * as core from "@phreshos/core"
-import { Client, Endpoint, Process, Program, Server, current, host } from "@phreshos/server"
+import { Client, Endpoint, Process, Program, Server, ServerServiceHandler, ServiceHandler, current, host } from "@phreshos/server"
 
 assert.equal(Program, core.Program)
 assert.equal(Process, core.Process)
@@ -75,8 +75,16 @@ assert.equal(Server, core.Server)
 assert.equal(Client, core.Client)
 assert.equal(typeof current.process, "function")
 assert.equal(typeof current.client.window, "object")
+assert.equal(typeof current.enableService, "function")
+assert.equal(typeof current.disableService, "function")
+assert.equal("enableService" in current.client, false)
+assert.equal("disableService" in current.client, false)
 assert.equal(typeof host.theme.snapshot, "function")
 assert.equal(typeof host.desktopWallpaper.set, "function")
+const service = host.service({ program: "counter", endpoint: "server", name: "state" })
+assert.equal(service, host.service({ program: "counter", endpoint: "server", name: "state" }))
+assert(service instanceof ServiceHandler)
+assert(service instanceof ServerServiceHandler)
 `
   )
   execFileSync(process.execPath, [join(consumer, "runtime.mjs")], {
@@ -86,7 +94,8 @@ assert.equal(typeof host.desktopWallpaper.set, "function")
 
   writeFileSync(
     join(consumer, "startup.mjs"),
-    `import "@phreshos/server"
+    `import { host } from "@phreshos/server"
+host.service({ program: "counter", endpoint: "server", name: "state" })
 setTimeout(() => process.exit(0), 25)
 `
   )
@@ -95,9 +104,15 @@ setTimeout(() => process.exit(0), 25)
 
   writeFileSync(
     join(consumer, "consumer.ts"),
-    `import { current, host, Client, Server, type ThemeProperties } from "@phreshos/server"
+    `import { current, host, Client, Server, type ServerServiceHandler, type ThemeProperties } from "@phreshos/server"
+
+type CounterEvents = { change: number }
 
 const theme: Promise<Readonly<ThemeProperties>> = host.theme.snapshot()
+const counter: ServerServiceHandler<CounterEvents> = host.service<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
+const counterStop = counter.channel.subscribe("change", value => void value)
+const counterAnswer: Promise<number> = counter.channel.ask<number>("value")
+const expose: Promise<void> = current.enableService("state")
 const stop = host.subscribe("endpointStop", endpoint => {
   if (endpoint instanceof Server) void endpoint.process()
   if (endpoint instanceof Client) void endpoint.window.surface.set()
@@ -106,6 +121,10 @@ const client: Client = current.client
 const start: Promise<void> = client.start({ title: "Prepared title" })
 
 void theme
+void counter
+void counterStop
+void counterAnswer
+void expose
 void stop
 void client
 void start

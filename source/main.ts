@@ -13,6 +13,16 @@ export { current, type Current, type CurrentClient } from "./current.js"
 export { type Answerer, type Channel } from "./channel.js"
 export { type ProgramStartup } from "./startup.js"
 export {
+  ClientServiceHandler,
+  ServerServiceHandler,
+  ServiceHandler,
+  type ClientServiceChannel,
+  type ServerServiceChannel,
+  type ServiceChannel,
+  type ServiceKey,
+  type ServiceLifecycleEvents
+} from "@phreshos/core"
+export {
   Client,
   Endpoint,
   Process,
