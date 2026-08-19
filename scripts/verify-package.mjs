@@ -117,10 +117,16 @@ const counterDocs: Promise<string | null> = counter.docs()
 const expose: Promise<void> = current.enableService({ name: "state", docs: "# Counter" })
 const stop = host.subscribe("endpointStop", endpoint => {
   if (endpoint instanceof Server) void endpoint.process()
-  if (endpoint instanceof Client) void endpoint.window.surface.set()
+  if (endpoint instanceof Client) void endpoint.window.size()
 })
 const client: Client = current.client
 const start: Promise<void> = client.start({ title: "Prepared title" })
+const geometry: Promise<void> = client.window.setGeometry({
+  position: { x: "0/1", y: "0/1" },
+  size: { width: "1/2", height: "1/2" }
+})
+type ServerWindowHasSurface = "surface" extends keyof Client["window"] ? true : false
+const serverWindowHasSurface: ServerWindowHasSurface = false
 
 void theme
 void counter
@@ -131,6 +137,8 @@ void expose
 void stop
 void client
 void start
+void geometry
+void serverWindowHasSurface
 `
   )
   writeFileSync(

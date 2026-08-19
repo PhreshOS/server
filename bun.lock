@@ -5,17 +5,17 @@
     "": {
       "name": "@phreshos/server",
       "devDependencies": {
-        "@phreshos/core": "^0.1.4",
+        "@phreshos/core": "^0.1.5",
         "@types/node": "^26.2.0",
         "typescript": "^6.0.3",
       },
       "peerDependencies": {
-        "@phreshos/core": "^0.1.4",
+        "@phreshos/core": "^0.1.5",
       },
     },
   },
   "packages": {
-    "@phreshos/core": ["@phreshos/core@0.1.4", "", {}, "sha512-qg4Uo+yH9KySygNQRmY7KSxpmNPt2oqkzAJcZBfitw+3g9zllwVzMHbUx3rU8gKZoY4hx1kZVdCd1ZiYo+TF5Q=="],
+    "@phreshos/core": ["@phreshos/core@0.1.5", "", {}, "sha512-BJx9OkyhWYJCHc2NElH/RI/oZ9cqCHAIIecoWGPz5vjcSJb6UFhmIds+UHBPBh3pgia9G+WzXicSMRqkhVFaNQ=="],
 
     "@types/node": ["@types/node@26.2.0", "", { "dependencies": { "undici-types": "~8.3.0" } }, "sha512-5IviulTZeRNp2vAJ514cc/HUlY5nZ9fCbq9DMyC52BrhFZACo3nI0R7qBxhQmo/d27NFe96ur/b7Wwxklda+kg=="],
 

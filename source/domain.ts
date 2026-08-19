@@ -20,7 +20,7 @@ import {
   type Size,
   type TrafficMessage,
   type Window as CoreWindow,
-  type WindowSurfaceSettings,
+  type WindowGeometry,
   type WindowState
 } from "@phreshos/core"
 import { randomUUID } from "node:crypto"
@@ -430,11 +430,8 @@ class ClientHandle extends ClientBase {
 }
 
 class WindowHandle extends Events {
-  public readonly surface: WindowSurfaceHandle
-
   public constructor(private readonly target: WindowTarget) {
     super(...deferredScoped("host-end", target, (_event, values) => values[0]))
-    this.surface = new WindowSurfaceHandle(target)
   }
 
   private async state() {
@@ -451,16 +448,10 @@ class WindowHandle extends Events {
   public async location() { return (await this.state()).location }
   public async move(position: Position) { await wire.request(["move", await this.target(), position]) }
   public async resize(size: Size) { await wire.request(["resize", await this.target(), size]) }
+  public async setGeometry(geometry: WindowGeometry) { await wire.request(["setGeometry", await this.target(), geometry]) }
   public async minimize(minimized = true) { await wire.request(["minimize", await this.target(), minimized]) }
   public async changeTitle(title: string) { await wire.request(["changeTitle", await this.target(), title]) }
   public async raise() { await wire.request(["raise", await this.target()]) }
-}
-
-class WindowSurfaceHandle {
-  public constructor(private readonly target: WindowTarget) {}
-
-  public async set(settings: WindowSurfaceSettings = {}) { await wire.request(["surfaceSet", await this.target(), settings]) }
-  public async remove() { await wire.request(["surfaceRemove", await this.target()]) }
 }
 
 type WindowTarget = () => Promise<HandleAddress>
@@ -486,7 +477,7 @@ function deferredScoped(route: string, target: WindowTarget, convert: (event: st
 }
 
 function windowEvent(event: string) {
-  return event === "move" || event === "resize" || event === "minimize" || event === "changeTitle" || event === "front"
+  return event === "move" || event === "resize" || event === "geometry" || event === "minimize" || event === "changeTitle" || event === "front"
 }
 
 function deferred(target: WindowTarget, register: (subject: string) => Cleanup, impossible?: (error: Error) => void): Cleanup {

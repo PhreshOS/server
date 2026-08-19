@@ -95,10 +95,7 @@ export type {
   DesktopWallpaper,
   WritableTheme,
   WindowEvents,
+  WindowGeometry,
   WindowLayer,
-  WindowState,
-  WindowSurface,
-  WindowSurfaceEasing,
-  WindowSurfaceSettings,
-  WindowSurfaceTransaction
+  WindowState
 } from "@phreshos/core"

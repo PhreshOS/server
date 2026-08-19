@@ -76,13 +76,10 @@ retained handle. Server and Client handles remain stable for their Process
 lifetime. Each Client permanently owns one synchronous `window` capability,
 whose operations address that Client's current live presentation state.
 
-An `under` or `over` Client Window may own an authoritative host Surface through
-`client.window.surface`. It is command-only: `set()` or `remove()` changes the
-server-owned value, while Program endpoints cannot read or subscribe to it.
-Radius may be a
-nonnegative pixel number, `"full"`, or a semantic `ScaleLevel` resolved by the
-desktop against its current Theme. Ordinary `window` and system `wallpaper`
-layers reject Surface mutations.
+Surface presentation is deliberately absent from the Server SDK. It belongs to
+one live iframe representation and is requested through the Client's
+`current.window.surface`; a Server may coordinate Program state, but it neither
+owns nor controls the resulting desktop material.
 
 The package provides two contextual runtime entry points:
 
