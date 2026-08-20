@@ -76,6 +76,7 @@ assert.equal(Server, core.Server)
 assert.equal(Client, core.Client)
 assert.equal(typeof current.process, "function")
 assert.equal(typeof current.client.window, "object")
+assert.equal("local" in current.client.window, false)
 assert.equal(typeof current.enableService, "function")
 assert.equal(typeof current.disableService, "function")
 assert.equal("enableService" in current.client, false)
@@ -130,6 +131,8 @@ const geometry: Promise<void> = client.window.setGeometry({
 })
 type ServerWindowHasSurface = "surface" extends keyof Client["window"] ? true : false
 const serverWindowHasSurface: ServerWindowHasSurface = false
+type ServerWindowHasLocal = "local" extends keyof Client["window"] ? true : false
+const serverWindowHasLocal: ServerWindowHasLocal = false
 
 void theme
 void counter
@@ -142,6 +145,7 @@ void client
 void start
 void geometry
 void serverWindowHasSurface
+void serverWindowHasLocal
 `
   )
   writeFileSync(

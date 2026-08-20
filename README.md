@@ -77,9 +77,9 @@ lifetime. Each Client permanently owns one synchronous `window` capability,
 whose operations address that Client's current live presentation state.
 
 Local representation and Surface presentation are deliberately absent from the
-Server SDK. They belong to one live iframe and are requested through the
-Client's `current.localWindow`; a Server may coordinate Program state, but it neither
-owns nor controls the resulting desktop material.
+Server SDK. Client-side Window handles expose them through `window.local`; a
+Server may coordinate Program state, but it neither owns nor controls the
+resulting desktop material.
 
 The package provides two contextual runtime entry points:
 
