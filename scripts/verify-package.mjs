@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { decode } from "@msgpack/msgpack"
 import manifest from "../package.json" with { type: "json" }
 
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -101,7 +102,9 @@ setTimeout(() => process.exit(0), 25)
 `
   )
   const messages = await childMessages(join(consumer, "startup.mjs"), consumer)
-  assert.deepEqual(messages, [["boundary", "ready"]])
+  assert.equal(messages.length, 1)
+  assert(messages[0] instanceof Uint8Array)
+  assert.deepEqual(decode(messages[0]), ["boundary", "ready"])
 
   writeFileSync(
     join(consumer, "consumer.ts"),
@@ -173,7 +176,7 @@ void serverWindowHasSurface
 function childMessages(entry, cwd) {
   return new Promise((resolveMessages, reject) => {
     const messages = []
-    const child = fork(entry, [], { cwd, stdio: ["ignore", "inherit", "inherit", "ipc"] })
+    const child = fork(entry, [], { cwd, serialization: "advanced", stdio: ["ignore", "inherit", "inherit", "ipc"] })
 
     child.on("message", message => messages.push(message))
     child.once("error", reject)

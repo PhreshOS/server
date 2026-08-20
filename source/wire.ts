@@ -3,6 +3,7 @@ import type { Cleanup, Outcome, ServiceKey } from "@phreshos/core"
 import Deadline from "./deadline.js"
 import { defaultTimeout } from "./events.js"
 import type { HandleAddress } from "./domain.js"
+import { deserialize, serialize } from "./messagepack.js"
 
 type Handler = (...values: unknown[]) => unknown
 type Failure = (error: Error) => void
@@ -32,9 +33,14 @@ class Wire {
 
   public constructor() {
     process.on("message", message => {
-      if (!Array.isArray(message)) return
+      if (!(message instanceof Uint8Array)) return
 
-      const [route, ...values] = message as [string, ...unknown[]]
+      let decoded: unknown
+      try { decoded = deserialize(message) }
+      catch { return }
+      if (!Array.isArray(decoded) || typeof decoded[0] !== "string") return
+
+      const [route, ...values] = decoded as [string, ...unknown[]]
 
       if (route === "boundary") {
         const [operation, ...rest] = values
@@ -62,11 +68,11 @@ class Wire {
       this.deliver(route, values)
     })
 
-    process.send?.(["boundary", "ready"])
+    process.send?.(serialize(["boundary", "ready"]))
   }
 
   public send(route: string, ...values: unknown[]) {
-    process.send?.([route, ...values])
+    process.send?.(serialize([route, ...values]))
   }
 
   public request(values: unknown[], timeout = defaultTimeout): Promise<unknown> {
