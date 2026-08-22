@@ -32,7 +32,6 @@ function isObject(value: unknown): value is ThemeProperties {
   const surface = theme.surface
   return typeof theme.background === "string" && typeof theme.foreground === "string" && typeof theme.accent === "string"
     && typeof theme.spacing === "number" && typeof theme.radius === "number"
-    && typeof theme.glass === "object" && theme.glass !== null
     && typeof surface === "object" && surface !== null
     && typeof surface.grain === "number" && typeof surface.animation === "number"
     && typeof surface.backdrop === "number" && typeof surface.opacity === "number"
