@@ -29,11 +29,11 @@ export default class ServerTheme extends Events {
 function isObject(value: unknown): value is ThemeProperties {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false
   const theme = value as Partial<ThemeProperties>
-  const surface = (theme as { surface?: Record<string, unknown> }).surface
+  const surface = theme.surface
   return typeof theme.background === "string" && typeof theme.foreground === "string" && typeof theme.accent === "string"
     && typeof theme.spacing === "number" && typeof theme.radius === "number"
     && typeof theme.glass === "object" && theme.glass !== null
-    && typeof surface === "object" && surface !== null && typeof surface.color === "string"
+    && typeof surface === "object" && surface !== null
     && typeof surface.grain === "number" && typeof surface.animation === "number"
     && typeof surface.backdrop === "number" && typeof surface.opacity === "number"
 }
