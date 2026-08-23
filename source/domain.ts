@@ -117,7 +117,7 @@ export interface Program<Events extends object = {}> extends Omit<CoreProgram<Ev
 }
 
 /** Server-visible Process operations scoped to one Program. */
-export interface ProgramProcess extends Omit<CoreProgramProcess, "list" | "first" | "last" | "find" | "create"> {
+export interface ProgramProcess extends Omit<CoreProgramProcess, "list" | "first" | "last" | "find" | "create" | "findOrCreate"> {
   /** Returns every live Process of this Program. */
   list(): Promise<Process[]>
 
@@ -132,6 +132,9 @@ export interface ProgramProcess extends Omit<CoreProgramProcess, "list" | "first
 
   /** Creates one Process of this Program. */
   create(launch?: Launch): Promise<Process>
+
+  /** Finds the named Process or atomically creates it with the same resolved launch. */
+  findOrCreate(launch: Launch & Readonly<{ name: string }>): Promise<Process>
 }
 
 /** Server-visible Process handle. */
@@ -305,6 +308,11 @@ class ProgramProcessHandle {
 
   public async create(launch: Launch = {}) {
     const answer = await wire.request(["program-process-create", this.address, launch]) as [ProcessRecord]
+    return process(answer[0])
+  }
+
+  public async findOrCreate(launch: Launch & Readonly<{ name: string }>) {
+    const answer = await wire.request(["program-process-find-or-create", this.address, launch]) as [ProcessRecord]
     return process(answer[0])
   }
 

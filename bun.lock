@@ -8,19 +8,19 @@
         "@msgpack/msgpack": "^3.1.3",
       },
       "devDependencies": {
-        "@phreshos/core": "^0.1.9",
+        "@phreshos/core": "^0.1.11",
         "@types/node": "^26.2.0",
         "typescript": "^6.0.3",
       },
       "peerDependencies": {
-        "@phreshos/core": "^0.1.9",
+        "@phreshos/core": "^0.1.11",
       },
     },
   },
   "packages": {
     "@msgpack/msgpack": ["@msgpack/msgpack@3.1.3", "", {}, "sha512-47XIizs9XZXvuJgoaJUIE2lFoID8ugvc0jzSHP+Ptfk8nTbnR8g788wv48N03Kx0UkAv559HWRQ3yzOgzlRNUA=="],
 
-    "@phreshos/core": ["@phreshos/core@0.1.9", "", {}, "sha512-P2dQ3K3t6HvvPnf9XJRADkK1r3+vUK6d4iHGn4vMUVIFDnE0hTWJGlvRjFzq2plWA0mMtYqm82JcFCmai0cK1w=="],
+    "@phreshos/core": ["@phreshos/core@0.1.11", "", {}, "sha512-h1Q5ar8ghisWdvWqQ/9/iRp0H0QPCZj6X1VFzSvbkkPd4A7OMVuEM/itRNbpDvaxgmsfDD0D22T4Hm41AlmGzw=="],
 
     "@types/node": ["@types/node@26.2.0", "", { "dependencies": { "undici-types": "~8.3.0" } }, "sha512-5IviulTZeRNp2vAJ514cc/HUlY5nZ9fCbq9DMyC52BrhFZACo3nI0R7qBxhQmo/d27NFe96ur/b7Wwxklda+kg=="],
 

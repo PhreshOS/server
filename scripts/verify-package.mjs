@@ -129,6 +129,11 @@ const expose: Promise<void> = current.enableService("state")
 const program = await current.program()
 const hasService: boolean | undefined = program.server?.hasService()
 const serviceDocs: Promise<string | null> | undefined = program.server?.docs()
+const shared: Promise<import("@phreshos/server").Process> = program.process.findOrCreate({
+  name: "shared-server",
+  server: true,
+  client: false
+})
 const stop = host.process.subscribe("endpointStop", endpoint => {
   if (endpoint instanceof Server) void endpoint.process()
   if (endpoint instanceof Client) void endpoint.window.size()
@@ -151,6 +156,7 @@ void counterAnswer
 void expose
 void hasService
 void serviceDocs
+void shared
 void stop
 void client
 void start

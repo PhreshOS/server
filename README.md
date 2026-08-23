@@ -135,7 +135,16 @@ A Program owns its scoped Process capability:
 const processes = await program.process.list()
 const process = await program.process.find("worker")
 const created = await program.process.create({ name: "worker" })
+const shared = await program.process.findOrCreate({
+  name: "shared-server",
+  server: true,
+  client: false
+})
 ```
+
+`findOrCreate()` is atomic at the authoritative Core. Concurrent equivalent
+launches converge on one named Process; a different launch for that name
+rejects instead of reconfiguring the existing Process.
 
 `host.service(key)` creates the exact opaque service handle. The
 handler exposes its authored `name`, `enabled()`, `waitReady()`, lifecycle
