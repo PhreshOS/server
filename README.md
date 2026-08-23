@@ -124,11 +124,9 @@ on `host`:
 const programs = await host.program.list()
 const program = await host.program.find("counter")
 const processes = await host.process.list()
-const serviceKeys = await host.service.list()
 
 const stopPrograms = host.program.subscribe("create", value => undefined)
 const stopProcesses = host.process.subscribe("exit", value => undefined)
-const stopServices = host.service.subscribe("enable", key => undefined)
 ```
 
 A Program owns its scoped Process capability:
@@ -139,10 +137,13 @@ const process = await program.process.find("worker")
 const created = await program.process.create({ name: "worker" })
 ```
 
-`host.service.prepare(key)` creates the exact opaque service handle. The
+`host.service(key)` creates the exact opaque service handle. The
 handler exposes its authored `name`, `enabled()`, `waitReady()`, lifecycle
 subscriptions, and channel; it does not expose its Program or Endpoint as
-separate fields.
+separate fields. Services are not a second public registry: inspect Programs
+and their Endpoint declarations. `program.server?.hasService()` identifies a
+declared Service capability, while `await program.server?.docs()` reads its
+installed policy and API documentation before the Endpoint starts.
 
 `program.icon()` requests a guaranteed PNG `Blob` in `small`, `medium`, or
 `large` form without exposing the Program's source path or the system's private

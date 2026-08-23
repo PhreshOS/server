@@ -49,6 +49,19 @@ export interface ProgramArea extends CoreProgramArea {
 }
 
 /** Client-safe Program data transported by the authoritative host. */
+export interface EndpointDeclarationRecord {
+  start: boolean
+  hasService: boolean
+}
+
+export interface ClientDeclarationRecord extends EndpointDeclarationRecord {
+  title: string | null
+  size: Size | null
+  position: Position | null
+  layer: ClientDeclaration["layer"]
+  minimize: boolean | null
+}
+
 export interface ProgramRecord {
   reference: string
   identity: string
@@ -56,8 +69,8 @@ export interface ProgramRecord {
   name: string
   version: string | null
   description: string | null
-  server: EndpointDeclaration | null
-  client: ClientDeclaration | null
+  server: EndpointDeclarationRecord | null
+  client: ClientDeclarationRecord | null
 }
 
 /** Process data transported with every Endpoint reference. */
@@ -199,8 +212,12 @@ class ProgramHandle extends ProgramBase {
   public get name() { return this.record.name }
   public get version() { return this.record.version }
   public get description() { return this.record.description }
-  public get server() { return this.record.server }
-  public get client() { return this.record.client }
+  public get server() {
+    return this.record.server ? declaration(this.address, "server", this.record.server) : null
+  }
+  public get client() {
+    return this.record.client ? clientDeclaration(this.address, this.record.client) : null
+  }
   public get address(): HandleAddress { return { identity: this.identity, reference: this.reference } }
 
   public update(record: ProgramRecord) {
@@ -236,6 +253,31 @@ class ProgramHandle extends ProgramBase {
     await wire.request(["forget", this.address])
   }
 
+}
+
+function declaration(address: HandleAddress, endpoint: "server" | "client", record: EndpointDeclarationRecord): EndpointDeclaration {
+  return Object.freeze({
+    start: record.start,
+    hasService: () => record.hasService,
+    docs: () => endpointDocs(address, endpoint, record.hasService)
+  })
+}
+
+function clientDeclaration(address: HandleAddress, record: ClientDeclarationRecord): ClientDeclaration {
+  return Object.freeze({
+    ...declaration(address, "client", record),
+    title: record.title,
+    size: record.size,
+    position: record.position,
+    layer: record.layer,
+    minimize: record.minimize
+  })
+}
+
+async function endpointDocs(address: HandleAddress, endpoint: "server" | "client", declared: boolean) {
+  if (!declared) return null
+  const answer = await wire.request(["endpoint-docs", address, endpoint]) as [string | null]
+  return answer[0]
 }
 
 class ProgramProcessHandle {

@@ -85,17 +85,17 @@ assert.equal(typeof host.theme.snapshot, "function")
 assert.equal(typeof host.desktopWallpaper.set, "function")
 assert.equal(typeof host.program.list, "function")
 assert.equal(typeof host.process.list, "function")
-assert.equal(typeof host.service.list, "function")
+assert.equal(typeof host.service, "function")
 assert.equal("subscribe" in host, false)
-const service = host.service.prepare({ program: "counter", endpoint: "server", name: "state" })
-assert.equal(service, host.service.prepare({ program: "counter", endpoint: "server", name: "state" }))
+const service = host.service({ program: "counter", endpoint: "server", name: "state" })
+assert.equal(service, host.service({ program: "counter", endpoint: "server", name: "state" }))
 assert(service instanceof ServiceHandler)
 assert(service instanceof ServerServiceHandler)
 assert.equal("program" in service, false)
 assert.equal("endpoint" in service, false)
 assert.equal(typeof service.enabled, "function")
 assert.equal(typeof service.waitReady, "function")
-assert.equal(typeof service.docs, "function")
+assert.equal("docs" in service, false)
 `
   )
   execFileSync(process.execPath, [join(consumer, "runtime.mjs")], {
@@ -106,7 +106,7 @@ assert.equal(typeof service.docs, "function")
   writeFileSync(
     join(consumer, "startup.mjs"),
     `import { host } from "@phreshos/server"
-host.service.prepare({ program: "counter", endpoint: "server", name: "state" })
+host.service({ program: "counter", endpoint: "server", name: "state" })
 setTimeout(() => process.exit(0), 25)
 `
   )
@@ -122,11 +122,13 @@ setTimeout(() => process.exit(0), 25)
 type CounterEvents = { change: number }
 
 const theme: Promise<Readonly<ThemeProperties>> = host.theme.snapshot()
-const counter: ServerServiceHandler<CounterEvents> = host.service.prepare<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
+const counter: ServerServiceHandler<CounterEvents> = host.service<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
 const counterStop = counter.channel.subscribe("change", value => void value)
 const counterAnswer: Promise<number> = counter.channel.ask<number>("value")
-const counterDocs: Promise<string | null> = counter.docs()
-const expose: Promise<void> = current.enableService({ name: "state", docs: "# Counter" })
+const expose: Promise<void> = current.enableService("state")
+const program = await current.program()
+const hasService: boolean | undefined = program.server?.hasService()
+const serviceDocs: Promise<string | null> | undefined = program.server?.docs()
 const stop = host.process.subscribe("endpointStop", endpoint => {
   if (endpoint instanceof Server) void endpoint.process()
   if (endpoint instanceof Client) void endpoint.window.size()
@@ -146,8 +148,9 @@ void theme
 void counter
 void counterStop
 void counterAnswer
-void counterDocs
 void expose
+void hasService
+void serviceDocs
 void stop
 void client
 void start

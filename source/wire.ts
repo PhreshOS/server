@@ -244,19 +244,6 @@ class Wire {
     })
   }
 
-  /** Follow lifecycle changes across the authoritative service registry. */
-  public followServiceRegistry(event: string | null, handler: Handler): Cleanup {
-    const subscription = randomUUID()
-    const stop = this.on("service-registry-event", subscription, handler)
-
-    this.send("end-host", "service-registry-follow", subscription, event)
-
-    return once(() => {
-      stop()
-      this.send("end-host", "service-registry-unfollow", subscription)
-    })
-  }
-
   private register(kind: TrafficKind, route: string, event: string | null, subject: string | null, impossible?: Failure) {
     const subscription = randomUUID()
 

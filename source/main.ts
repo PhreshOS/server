@@ -3,7 +3,6 @@ export {
   type Host,
   type HostProcess,
   type HostProgram,
-  type HostService,
   type ClientDescription,
   type ProcessHostEvents,
   type ProcessHostExit,

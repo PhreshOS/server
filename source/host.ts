@@ -8,7 +8,6 @@ import type {
   ClientServiceHandler,
   ServerServiceHandler,
   ServiceKey,
-  ServiceRegistryEvents,
   Size,
   Subscribable,
   ThemeProperties,
@@ -41,6 +40,9 @@ export type ServerDescription = Readonly<{
   /** Whether newly created Processes start this Server by default. */
   start?: boolean
 
+  /** Absolute Markdown file documenting the Service this Server may expose. */
+  serviceDocs?: string
+
   /** Command used to install the Server's production dependencies. */
   installCommand?: string
 
@@ -55,6 +57,9 @@ export type ClientDescription = Readonly<{
 
   /** Whether newly created Processes start this Client by default. */
   start?: boolean
+
+  /** Absolute Markdown file documenting the Service this Client may expose. */
+  serviceDocs?: string
 
   /** Default Window title. */
   title?: string
@@ -168,14 +173,6 @@ export interface HostProcess extends Subscribable<ProcessHostEvents, never> {
   find(identity: string): Promise<Process | null>
 }
 
-/** Authoritative public service registry available to a Server endpoint. */
-export interface HostService extends Subscribable<ServiceRegistryEvents, never> {
-  list(): Promise<readonly ServiceKey[]>
-
-  prepare<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
-  prepare<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
-}
-
 /** Authoritative system capabilities available to a Server endpoint. */
 export interface Host {
   /** Observable system Theme authority. */
@@ -189,7 +186,10 @@ export interface Host {
 
   readonly program: HostProgram
   readonly process: HostProcess
-  readonly service: HostService
+
+  /** Returns a stable handle for one exact Service identity. */
+  service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
+  service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
 
   /** Publishes a value through the host and returns its public file metadata. */
   serve(value: unknown): Promise<ServedFile>
@@ -202,7 +202,10 @@ class ServerHost {
   public readonly desktopWallpaper = new ServerDesktopWallpaper()
   public readonly program = new ServerHostProgram() as unknown as HostProgram
   public readonly process = new ServerHostProcess() as unknown as HostProcess
-  public readonly service = new ServerHostService() as unknown as HostService
+
+  public service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
+  public service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
+  public service(key: ServiceKey) { return prepareService(key) }
 
   public serve(value: unknown) { return serve(value) }
 }
@@ -251,28 +254,6 @@ class ServerHostProcess extends Events {
   public async find(identity: string) {
     const answer = await wire.request(["host-process-find", identity]) as [ProcessRecord | null]
     return answer[0] ? process(answer[0]) : null
-  }
-}
-
-class ServerHostService extends Events {
-  public constructor() {
-    super(
-      (event, listener) => wire.followServiceRegistry(event, listener),
-      observer => wire.followServiceRegistry(null, (event, key) => {
-        if (typeof event === "string") observer(event, key)
-      })
-    )
-  }
-
-  public async list() {
-    const answer = await wire.request(["host-service-list"]) as [ServiceKey[]]
-    return Object.freeze(answer[0])
-  }
-
-  public prepare<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
-  public prepare<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
-  public prepare(key: ServiceKey) {
-    return prepareService(key)
   }
 }
 
