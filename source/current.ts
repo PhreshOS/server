@@ -81,7 +81,7 @@ let currentClient!: CurrentClient
 
 function owner() {
   if (!ownerPromise) {
-    const resolving = wire.request(["process"]).then(answer => {
+    const resolving = wire.request(["current-process"]).then(answer => {
       return process((answer as [ProcessRecord])[0], { client: currentClient })
     })
 
@@ -117,7 +117,7 @@ class ServerCurrent {
   }
 
   public async program() {
-    const answer = await wire.request(["program"]) as [ProgramRecord]
+    const answer = await wire.request(["current-program"]) as [ProgramRecord]
     return program(answer[0])
   }
 

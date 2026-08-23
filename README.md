@@ -113,8 +113,36 @@ waiter.
 Server Program handles add `install()` and `fork()`. Their filesystem areas
 also expose `path()` and traversal-safe `resolve()`, because filesystem work is
 performed locally in the Server SDK after the Host supplies only the area root.
-Object descriptions passed to `host.createProgram()` therefore require an
+Object descriptions passed to `host.program.create()` therefore require an
 explicit absolute storage root as well as at least one declared Endpoint.
+
+Host registries are separated by owner. Reads, commands, and the complete
+subscription contract live on their relevant capability rather than directly
+on `host`:
+
+```ts
+const programs = await host.program.list()
+const program = await host.program.find("counter")
+const processes = await host.process.list()
+const serviceKeys = await host.service.list()
+
+const stopPrograms = host.program.subscribe("create", value => undefined)
+const stopProcesses = host.process.subscribe("exit", value => undefined)
+const stopServices = host.service.subscribe("enable", key => undefined)
+```
+
+A Program owns its scoped Process capability:
+
+```ts
+const processes = await program.process.list()
+const process = await program.process.find("worker")
+const created = await program.process.create({ name: "worker" })
+```
+
+`host.service.prepare(key)` creates the exact opaque service handle. The
+handler exposes its authored `name`, `enabled()`, `waitReady()`, lifecycle
+subscriptions, and channel; it does not expose its Program or Endpoint as
+separate fields.
 
 `program.icon()` requests a guaranteed PNG `Blob` in `small`, `medium`, or
 `large` form without exposing the Program's source path or the system's private
@@ -137,6 +165,6 @@ await program.startup.disable()
 ```
 
 The system validates this through the same launch contract as
-`createProcess()`. Setting startup does not create a Process immediately.
+`program.process.create()`. Setting startup does not create a Process immediately.
 `uninstall(false)` preserves the configuration but makes it inactive until the
 Program is installed again; removing everything deletes it.

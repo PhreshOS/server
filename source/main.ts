@@ -1,10 +1,14 @@
 export {
   host,
   type Host,
+  type HostProcess,
+  type HostProgram,
+  type HostService,
   type ClientDescription,
-  type HostEvents,
-  type HostProcessExit,
-  type HostProgramUninstall,
+  type ProcessHostEvents,
+  type ProcessHostExit,
+  type ProgramHostEvents,
+  type ProgramHostUninstall,
   type ProgramDescription,
   type ServerDescription
 } from "./host.js"
@@ -29,7 +33,8 @@ export {
   Program,
   Server,
   type Window,
-  type ProgramArea
+  type ProgramArea,
+  type ProgramProcess
 } from "./domain.js"
 
 export type {
@@ -70,7 +75,8 @@ export type {
   Outcome,
   Position,
   ProgramEvents,
-  ProgramPermissions,
+  ProgramPermission,
+  ProgramProcessEvents,
   ProgramProcessExit,
   ProgramSql,
   ProgramStore,

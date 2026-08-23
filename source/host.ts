@@ -7,6 +7,8 @@ import type {
   ServedFile,
   ClientServiceHandler,
   ServerServiceHandler,
+  ServiceKey,
+  ServiceRegistryEvents,
   Size,
   Subscribable,
   ThemeProperties,
@@ -29,7 +31,7 @@ import serve from "./served.js"
 import ServerTheme from "./theme.js"
 import { ServerDesktopWallpaper, ServerSignInWallpaper } from "./wallpaper.js"
 import wire from "./wire.js"
-import { service as serviceHandle } from "./service.js"
+import { prepareService } from "./service.js"
 
 /** Resolved production description for a Program's Server. */
 export type ServerDescription = Readonly<{
@@ -109,7 +111,7 @@ export type ProgramDescription = Description & (
 )
 
 /** An uninstall reported with the affected Program and removal scope. */
-export type HostProgramUninstall = Readonly<{
+export type ProgramHostUninstall = Readonly<{
   /** Program that left the installed state. */
   program: Program
 
@@ -118,40 +120,64 @@ export type HostProgramUninstall = Readonly<{
 }>
 
 /** A Process exit reported with the Process that ended. */
-export type HostProcessExit = Exit & Readonly<{
+export type ProcessHostExit = Exit & Readonly<{
   /** Process that ended. */
   process: Process
 }>
 
 /** Authoritative lifecycle events visible to the Server host. */
-export type HostEvents = {
+export type ProgramHostEvents = {
+  /** A Program entered the runtime registry. */
+  create: Program
+
+  /** A Program left the runtime registry. */
+  forget: Program
+
+  /** A Program entered the installed state. */
+  install: Program
+
+  /** A Program left the installed state. */
+  uninstall: ProgramHostUninstall
+}
+
+/** Authoritative Process lifecycle events visible to the Server host. */
+export type ProcessHostEvents = {
   /** One Process Endpoint entered a new live incarnation. */
   endpointStart: Server | Client
 
   /** One Process Endpoint incarnation ended. */
   endpointStop: Server | Client
 
-  /** A Program entered the runtime registry. */
-  programCreate: Program
-
-  /** A Program left the runtime registry. */
-  programForget: Program
-
-  /** A Program entered the installed state. */
-  programInstall: Program
-
-  /** A Program left the installed state. */
-  programUninstall: HostProgramUninstall
-
   /** A Process entered the runtime set. */
-  processCreate: Process
+  create: Process
 
   /** A Process left the runtime set. */
-  processExit: HostProcessExit
+  exit: ProcessHostExit
+}
+
+/** Authoritative Program registry available to a Server endpoint. */
+export interface HostProgram extends Subscribable<ProgramHostEvents, never> {
+  list(onlyInstalled?: boolean): Promise<Program[]>
+  find(identity: string): Promise<Program | null>
+  create(source: ProgramDescription | string): Promise<Program>
+}
+
+/** Authoritative Process registry available to a Server endpoint. */
+export interface HostProcess extends Subscribable<ProcessHostEvents, never> {
+  list(): Promise<Process[]>
+  find(identity: string): Promise<Process | null>
+}
+
+/** Authoritative public service registry available to a Server endpoint. */
+export interface HostService extends Subscribable<ServiceRegistryEvents, never> {
+  list(): Promise<readonly ServiceKey[]>
+
+  prepare<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
+  prepare<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
 }
 
 /** Authoritative system capabilities available to a Server endpoint. */
-export interface Host<Events extends object = {}> extends Subscribable<HostEvents & Events, never> {
+export interface Host {
   /** Observable system Theme authority. */
   readonly theme: WritableTheme<ThemeProperties>
 
@@ -161,103 +187,115 @@ export interface Host<Events extends object = {}> extends Subscribable<HostEvent
   /** Authoritative wallpaper visible within authenticated desktops. */
   readonly desktopWallpaper: DesktopWallpaper
 
+  readonly program: HostProgram
+  readonly process: HostProcess
+  readonly service: HostService
+
   /** Publishes a value through the host and returns its public file metadata. */
   serve(value: unknown): Promise<ServedFile>
 
-  /** Returns all known Programs, optionally restricted to installed Programs. */
-  programs(onlyInstalled?: boolean): Promise<Program[]>
-
-  /** Returns the Program with the given stable identity. */
-  getProgram(identity: string): Promise<Program>
-
-  /** Creates a runtime Program from a description or description file path. */
-  createProgram(source: ProgramDescription | string): Promise<Program>
-
-  /** Returns every live Process known to the authoritative host. */
-  processes(): Promise<Process[]>
-
-  /** Returns the live Process with the given runtime identity. */
-  getProcess(identity: string): Promise<Process>
-
-  /** Returns a stable handle for one exact Server service identity. */
-  service<ServiceEvents extends object = {}>(key: {
-    program: string
-    endpoint: "server"
-    name: string
-  }): ServerServiceHandler<ServiceEvents>
-
-  /** Returns a stable handle for one exact Client service identity. */
-  service<ServiceEvents extends object = {}>(key: {
-    program: string
-    endpoint: "client"
-    name: string
-  }): ClientServiceHandler<ServiceEvents>
 }
 
-class ServerHost extends Events {
+class ServerHost {
   public readonly theme = new ServerTheme()
   public readonly signInWallpaper = new ServerSignInWallpaper()
   public readonly desktopWallpaper = new ServerDesktopWallpaper()
+  public readonly program = new ServerHostProgram() as unknown as HostProgram
+  public readonly process = new ServerHostProcess() as unknown as HostProcess
+  public readonly service = new ServerHostService() as unknown as HostService
 
+  public serve(value: unknown) { return serve(value) }
+}
+
+class ServerHostProgram extends Events {
   public constructor() {
     super(
-      (event, listener, impossible) => wire.on("host-events", event, (...values) => listener(hostEvent(event, values)), null, impossible),
-      observer => wire.onAll("host-events", (event, ...values) => {
-        if (typeof event === "string") observer(event, hostEvent(event, values))
+      (event, listener, impossible) => wire.on("host-program", event, (...values) => listener(hostProgramEvent(event, values)), null, impossible),
+      observer => wire.onAll("host-program", (event, ...values) => {
+        if (typeof event === "string") observer(event, hostProgramEvent(event, values))
       })
     )
   }
 
-  public serve(value: unknown) { return serve(value) }
-
-  public async programs(onlyInstalled = false) {
-    const answer = await wire.request(["programs", onlyInstalled]) as [ProgramRecord[]]
+  public async list(onlyInstalled = false) {
+    const answer = await wire.request(["host-program-list", onlyInstalled]) as [ProgramRecord[]]
     return answer[0].map(program)
   }
 
-  public async getProgram(identity: string) {
-    const answer = await wire.request(["program", identity]) as [ProgramRecord]
+  public async find(identity: string) {
+    const answer = await wire.request(["host-program-find", identity]) as [ProgramRecord | null]
+    return answer[0] ? program(answer[0]) : null
+  }
+
+  public async create(source: ProgramDescription | string) {
+    const answer = await wire.request(["host-program-create", source]) as [ProgramRecord]
     return program(answer[0])
-  }
-
-  public async createProgram(source: ProgramDescription | string) {
-    const answer = await wire.request(["create-program", source]) as [ProgramRecord]
-    return program(answer[0])
-  }
-
-  public async processes() {
-    const answer = await wire.request(["processes"]) as [ProcessRecord[]]
-    return answer[0].map(record => process(record))
-  }
-
-  public async getProcess(identity: string) {
-    const answer = await wire.request(["process", identity]) as [ProcessRecord]
-    return process(answer[0])
-  }
-
-  public service<ServiceEvents extends object = {}>(key: { program: string, endpoint: "server", name: string }): ServerServiceHandler<ServiceEvents>
-  public service<ServiceEvents extends object = {}>(key: { program: string, endpoint: "client", name: string }): ClientServiceHandler<ServiceEvents>
-  public service(key: { program: string, endpoint: "server" | "client", name: string }) {
-    return serviceHandle(key)
   }
 }
 
-function hostEvent(event: string, values: unknown[]): unknown {
+class ServerHostProcess extends Events {
+  public constructor() {
+    super(
+      (event, listener, impossible) => wire.on("host-process", event, (...values) => listener(hostProcessEvent(event, values)), null, impossible),
+      observer => wire.onAll("host-process", (event, ...values) => {
+        if (typeof event === "string") observer(event, hostProcessEvent(event, values))
+      })
+    )
+  }
+
+  public async list() {
+    const answer = await wire.request(["host-process-list"]) as [ProcessRecord[]]
+    return answer[0].map(record => process(record))
+  }
+
+  public async find(identity: string) {
+    const answer = await wire.request(["host-process-find", identity]) as [ProcessRecord | null]
+    return answer[0] ? process(answer[0]) : null
+  }
+}
+
+class ServerHostService extends Events {
+  public constructor() {
+    super(
+      (event, listener) => wire.followServiceRegistry(event, listener),
+      observer => wire.followServiceRegistry(null, (event, key) => {
+        if (typeof event === "string") observer(event, key)
+      })
+    )
+  }
+
+  public async list() {
+    const answer = await wire.request(["host-service-list"]) as [ServiceKey[]]
+    return Object.freeze(answer[0])
+  }
+
+  public prepare<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
+  public prepare<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
+  public prepare(key: ServiceKey) {
+    return prepareService(key)
+  }
+}
+
+function hostProcessEvent(event: string, values: unknown[]): unknown {
   if (event === "endpointStart" || event === "endpointStop") return lifecycleEndpoint(values[1], values[2])
 
-  if (event === "processCreate") {
+  if (event === "create") {
     return process(values[1] as ProcessRecord)
   }
 
-  if (event === "processExit") {
+  if (event === "exit") {
     return { process: process(values[1] as ProcessRecord), ...exit(values[2], values[3]) }
   }
 
-  if (event === "programCreate" || event === "programForget" || event === "programInstall") {
+  return values[0]
+}
+
+function hostProgramEvent(event: string, values: unknown[]): unknown {
+  if (event === "create" || event === "forget" || event === "install") {
     return program(values[1] as ProgramRecord)
   }
 
-  if (event === "programUninstall") {
+  if (event === "uninstall") {
     return { program: program(values[1] as ProgramRecord), everythingRemoved: values[2] === true }
   }
 

@@ -99,7 +99,7 @@ class Wire {
   /** Resolves this endpoint's Process address only for operations that need it. */
   public identity() {
     if (!this.identityPromise) {
-      const resolving = this.request(["process"]).then(value => {
+      const resolving = this.request(["current-process"]).then(value => {
         const [record] = value as [{ identity?: unknown, reference?: unknown }]
         if (typeof record?.identity !== "string" || typeof record.reference !== "string") {
           throw new Error("The host returned an invalid Process identity")
@@ -241,6 +241,19 @@ class Wire {
     return once(() => {
       stop()
       this.send("end-host", "service-unfollow", subscription)
+    })
+  }
+
+  /** Follow lifecycle changes across the authoritative service registry. */
+  public followServiceRegistry(event: string | null, handler: Handler): Cleanup {
+    const subscription = randomUUID()
+    const stop = this.on("service-registry-event", subscription, handler)
+
+    this.send("end-host", "service-registry-follow", subscription, event)
+
+    return once(() => {
+      stop()
+      this.send("end-host", "service-registry-unfollow", subscription)
     })
   }
 

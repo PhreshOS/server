@@ -62,22 +62,23 @@ class ClientChannelHandle extends Events {
 }
 
 class ServerHandler<EventsMap extends object = {}> extends ServerServiceBase {
-  public readonly program: string
-  public readonly endpoint = "server" as const
   public readonly name: string
   public readonly channel: ServerServiceChannel<EventsMap>
 
   public constructor(private readonly key: ServiceKey & { endpoint: "server" }) {
     super()
-    this.program = key.program
     this.name = key.name
     this.channel = new ServerChannelHandle(key) as unknown as ServerServiceChannel<EventsMap>
     bindEvents(this, new Events(...serviceEvents(key, "lifecycle")))
   }
 
-  public async disabled() {
-    const answer = await wire.request(["service-disabled", this.key]) as [boolean]
+  public async enabled() {
+    const answer = await wire.request(["service-enabled", this.key]) as [boolean]
     return answer[0]
+  }
+
+  public async waitReady(timeout?: number) {
+    await wire.request(["service-wait-ready", this.key, timeout], timeout)
   }
 
   public async docs() {
@@ -87,29 +88,30 @@ class ServerHandler<EventsMap extends object = {}> extends ServerServiceBase {
 }
 
 class ClientHandler<EventsMap extends object = {}> extends ClientServiceBase {
-  public readonly program: string
-  public readonly endpoint = "client" as const
   public readonly name: string
   public readonly channel: ClientServiceChannel<EventsMap>
 
   public constructor(private readonly key: ServiceKey & { endpoint: "client" }) {
     super()
-    this.program = key.program
     this.name = key.name
     this.channel = new ClientChannelHandle(key) as unknown as ClientServiceChannel<EventsMap>
     bindEvents(this, new Events(...serviceEvents(key, "lifecycle")))
   }
 
-  public async disabled() {
-    const answer = await wire.request(["service-disabled", this.key]) as [boolean]
+  public async enabled() {
+    const answer = await wire.request(["service-enabled", this.key]) as [boolean]
     return answer[0]
+  }
+
+  public async waitReady(timeout?: number) {
+    await wire.request(["service-wait-ready", this.key, timeout], timeout)
   }
 }
 
-export function service<EventsMap extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<EventsMap>
-export function service<EventsMap extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<EventsMap>
-export function service(key: ServiceKey): ServiceHandler
-export function service(key: ServiceKey): ServiceHandler {
+export function prepareService<EventsMap extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<EventsMap>
+export function prepareService<EventsMap extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<EventsMap>
+export function prepareService(key: ServiceKey): ServiceHandler
+export function prepareService(key: ServiceKey): ServiceHandler {
   if (!isServiceKey(key)) throw new Error("A complete service key is required")
 
   const normalized = Object.freeze({ program: key.program, endpoint: key.endpoint, name: key.name })
@@ -138,7 +140,7 @@ export async function endpointService(target: HandleAddress | null, endpoint: "s
 Promise<ServiceHandler | null>
 export async function endpointService(target: HandleAddress | null, endpoint: "server" | "client") {
   const answer = await wire.request(["endpoint-service", target, endpoint]) as [ServiceKey | null]
-  return answer[0] ? service(answer[0]) : null
+  return answer[0] ? prepareService(answer[0]) : null
 }
 
 function serviceEvents(key: ServiceKey, scope: "lifecycle" | "channel") {
