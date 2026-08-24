@@ -17,9 +17,7 @@ export { type Answerer, type Channel } from "./channel.js"
 export { type ProgramStartup } from "./startup.js"
 export {
   ClientServiceHandler,
-  ServerServiceHandler,
-  type TimedClientServiceHandler,
-  type TimedServerServiceHandler
+  ServerServiceHandler
 } from "./service.js"
 export {
   ServiceHandler,

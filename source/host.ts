@@ -39,9 +39,6 @@ export type ServerDescription = Readonly<{
   /** Whether newly created Processes start this Server by default. */
   start?: boolean
 
-  /** Absolute Markdown file documenting the Service this Server may expose. */
-  serviceDocs?: string
-
   /** Command used to install the Server's production dependencies. */
   installCommand?: string
 
@@ -56,9 +53,6 @@ export type ClientDescription = Readonly<{
 
   /** Whether newly created Processes start this Client by default. */
   start?: boolean
-
-  /** Absolute Markdown file documenting the Service this Client may expose. */
-  serviceDocs?: string
 
   /** Default Window title. */
   title?: string
@@ -91,6 +85,9 @@ type Description = Readonly<{
 
   /** Absolute validated PNG source used to derive the Program's hosted icon sizes. */
   icon?: string
+
+  /** Absolute Markdown file describing Program-specific operation to agents. */
+  agent?: string
 
   /** Absolute directory used for the Program's persistent storage. */
   storage: string

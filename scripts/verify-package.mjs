@@ -95,11 +95,6 @@ assert.equal("program" in service, false)
 assert.equal("endpoint" in service, false)
 assert.equal(typeof service.enabled, "function")
 assert.equal(typeof service.waitReady, "function")
-assert.equal(typeof service.createAndWaitReady, "function")
-assert.equal(typeof service.timeout, "function")
-assert.equal(typeof service.timeout(1).waitReady, "function")
-assert.equal(typeof service.timeout(1).createAndWaitReady, "function")
-assert.equal("docs" in service, false)
 `
   )
   execFileSync(process.execPath, [join(consumer, "runtime.mjs")], {
@@ -128,16 +123,13 @@ type CounterEvents = { change: number }
 const theme: Promise<Readonly<ThemeProperties>> = host.theme.snapshot()
 const counter: ServerServiceHandler<CounterEvents> = host.service<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
 const counterReady: Promise<void> = counter.waitReady(10_000)
-const counterTimedReady: Promise<void> = counter.timeout(5_000).waitReady(10_000)
-const counterCreated: Promise<void> = counter.timeout(5_000).createAndWaitReady(10_000)
 const clientService = host.service({ program: "counter", endpoint: "client", name: "window" })
-const clientCreated: Promise<void> = clientService.timeout(5_000).createAndWaitReady({ minimize: true }, 10_000)
 const counterStop = counter.channel.subscribe("change", value => void value)
 const counterAnswer: Promise<number> = counter.channel.ask<number>("value")
 const expose: Promise<void> = current.enableService("state")
 const program = await current.program()
-const hasService: boolean | undefined = program.server?.hasService()
-const serviceDocs: Promise<string | null> | undefined = program.server?.docs()
+const hasAgent: boolean = program.hasAgent
+const agent: Promise<string | null> = program.agent()
 const shared: Promise<import("@phreshos/server").Process> = program.process.findOrCreate({
   name: "shared-server",
   server: true,
@@ -161,14 +153,12 @@ const serverWindowHasLocal: ServerWindowHasLocal = false
 void theme
 void counter
 void counterReady
-void counterTimedReady
-void counterCreated
-void clientCreated
+void clientService
 void counterStop
 void counterAnswer
 void expose
-void hasService
-void serviceDocs
+void hasAgent
+void agent
 void shared
 void stop
 void client

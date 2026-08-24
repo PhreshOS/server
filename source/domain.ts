@@ -55,7 +55,6 @@ export interface ProgramArea extends CoreProgramArea {
 /** Client-safe Program data transported by the authoritative host. */
 export interface EndpointDeclarationRecord {
   start: boolean
-  hasService: boolean
 }
 
 export interface ClientDeclarationRecord extends EndpointDeclarationRecord {
@@ -73,6 +72,7 @@ export interface ProgramRecord {
   name: string
   version: string | null
   description: string | null
+  hasAgent: boolean
   server: EndpointDeclarationRecord | null
   client: ClientDeclarationRecord | null
 }
@@ -225,11 +225,12 @@ class ProgramHandle extends ProgramBase {
   public get name() { return this.record.name }
   public get version() { return this.record.version }
   public get description() { return this.record.description }
+  public get hasAgent() { return this.record.hasAgent }
   public get server() {
-    return this.record.server ? declaration(this.address, "server", this.record.server) : null
+    return this.record.server ? declaration(this.record.server) : null
   }
   public get client() {
-    return this.record.client ? clientDeclaration(this.address, this.record.client) : null
+    return this.record.client ? clientDeclaration(this.record.client) : null
   }
   public get address(): HandleAddress { return { identity: this.identity, reference: this.reference } }
 
@@ -241,6 +242,12 @@ class ProgramHandle extends ProgramBase {
   public async icon(size: ProgramIconSize = "medium") {
     const answer = await wire.request(["icon", this.address, size]) as [number[]]
     return new Blob([Uint8Array.from(answer[0])], { type: "image/png" })
+  }
+
+  public async agent() {
+    if (!this.hasAgent) return null
+    const answer = await wire.request(["program-agent", this.address]) as [string | null]
+    return answer[0]
   }
 
   public async installed() {
@@ -268,29 +275,21 @@ class ProgramHandle extends ProgramBase {
 
 }
 
-function declaration(address: HandleAddress, endpoint: "server" | "client", record: EndpointDeclarationRecord): EndpointDeclaration {
+function declaration(record: EndpointDeclarationRecord): EndpointDeclaration {
   return Object.freeze({
-    start: record.start,
-    hasService: () => record.hasService,
-    docs: () => endpointDocs(address, endpoint, record.hasService)
+    start: record.start
   })
 }
 
-function clientDeclaration(address: HandleAddress, record: ClientDeclarationRecord): ClientDeclaration {
+function clientDeclaration(record: ClientDeclarationRecord): ClientDeclaration {
   return Object.freeze({
-    ...declaration(address, "client", record),
+    ...declaration(record),
     title: record.title,
     size: record.size,
     position: record.position,
     layer: record.layer,
     minimize: record.minimize
   })
-}
-
-async function endpointDocs(address: HandleAddress, endpoint: "server" | "client", declared: boolean) {
-  if (!declared) return null
-  const answer = await wire.request(["endpoint-docs", address, endpoint]) as [string | null]
-  return answer[0]
 }
 
 class ProgramProcessHandle {

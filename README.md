@@ -149,30 +149,22 @@ rejects instead of reconfiguring the existing Process.
 `host.service(key)` creates the exact opaque service handle. The
 handler exposes its authored `name`, `enabled()`, `waitReady()`, lifecycle
 subscriptions, and channel; it does not expose its Program or Endpoint as
-separate fields. Services are not a second public registry: inspect Programs
-and their Endpoint declarations. `program.server?.hasService()` identifies a
-declared Service capability, while `await program.server?.docs()` reads its
-installed policy and API documentation before the Endpoint starts.
+separate fields. Services are runtime bindings explicitly enabled by their
+providing Endpoints; creating the providing Process remains the Program's
+responsibility.
 
-Server-side Service handles can create their dedicated providing Process and
-wait for readiness without reproducing Program-specific launch rules:
-
-```ts
-await serverService.createAndWaitReady()
-await clientService.createAndWaitReady({ minimize: true })
-```
-
-Both readiness operations accept an optional timeout directly and expose an
-immutable timed view. A direct argument on the timed view takes precedence:
+Readiness accepts an optional timeout directly:
 
 ```ts
 await service.waitReady(10_000)
-await service.timeout(5_000).waitReady()
-await service.timeout(5_000).waitReady(10_000)
 ```
 
-The System owns the single deadline across Process creation, Endpoint startup,
-and Service readiness. The creation capability exists only in the Server SDK.
+Programs may provide one agent-independent operating document. Its availability
+is projected without loading it, and its content is read from the Program:
+
+```ts
+if (program.hasAgent) console.log(await program.agent())
+```
 
 `program.icon()` requests a guaranteed PNG `Blob` in `small`, `medium`, or
 `large` form without exposing the Program's source path or the system's private
