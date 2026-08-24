@@ -18,6 +18,10 @@ export { type ProgramStartup } from "./startup.js"
 export {
   ClientServiceHandler,
   ServerServiceHandler,
+  type TimedClientServiceHandler,
+  type TimedServerServiceHandler
+} from "./service.js"
+export {
   ServiceHandler,
   type ClientServiceChannel,
   type ServerServiceChannel,

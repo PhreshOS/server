@@ -3,11 +3,11 @@ import {
   ServerServiceHandler as CoreServerServiceHandler,
   isServiceKey,
   type ClientServiceChannel,
-  type ClientServiceHandler,
+  type LaunchClient,
   type ServerServiceChannel,
-  type ServerServiceHandler,
   type ServiceHandler,
-  type ServiceKey
+  type ServiceKey,
+  type Timeoutable
 } from "@phreshos/core"
 import { randomUUID } from "node:crypto"
 import Deadline from "./deadline.js"
@@ -17,8 +17,42 @@ import type { HandleAddress } from "./domain.js"
 import wire from "./wire.js"
 
 const handles = new HandleRegistry()
-const ServerServiceBase = CoreServerServiceHandler as unknown as new () => object
-const ClientServiceBase = CoreClientServiceHandler as unknown as new () => object
+
+/** Timed view of a Server Endpoint Service available through the Server SDK. */
+export interface TimedServerServiceHandler {
+  waitReady(timeout?: number): Promise<void>
+  createAndWaitReady(timeout?: number): Promise<void>
+}
+
+/** Timed view of a Client Endpoint Service available through the Server SDK. */
+export interface TimedClientServiceHandler {
+  waitReady(timeout?: number): Promise<void>
+  createAndWaitReady(client?: LaunchClient, timeout?: number): Promise<void>
+}
+
+/** Server-SDK handle for a Service provided by a Server Endpoint. */
+export class ServerServiceHandler<Events extends object = {}>
+  extends CoreServerServiceHandler<Events> {
+  protected constructor() { super() }
+}
+
+export interface ServerServiceHandler<Events extends object = {}>
+  extends Timeoutable<TimedServerServiceHandler> {
+  createAndWaitReady(timeout?: number): Promise<void>
+  timeout(milliseconds: number): TimedServerServiceHandler
+}
+
+/** Server-SDK handle for a Service provided by a Client Endpoint. */
+export class ClientServiceHandler<Events extends object = {}>
+  extends CoreClientServiceHandler<Events> {
+  protected constructor() { super() }
+}
+
+export interface ClientServiceHandler<Events extends object = {}>
+  extends Timeoutable<TimedClientServiceHandler> {
+  createAndWaitReady(client?: LaunchClient, timeout?: number): Promise<void>
+  timeout(milliseconds: number): TimedClientServiceHandler
+}
 
 class ServerChannelHandle extends Events {
   public constructor(private readonly key: ServiceKey) {
@@ -60,9 +94,9 @@ class ClientChannelHandle extends Events {
   }
 }
 
-class ServerHandler<EventsMap extends object = {}> extends ServerServiceBase {
-  public readonly name: string
-  public readonly channel: ServerServiceChannel<EventsMap>
+class ServerHandler<EventsMap extends object = {}> extends ServerServiceHandler<EventsMap> {
+  public override readonly name: string
+  public override readonly channel: ServerServiceChannel<EventsMap>
 
   public constructor(private readonly key: ServiceKey & { endpoint: "server" }) {
     super()
@@ -71,20 +105,31 @@ class ServerHandler<EventsMap extends object = {}> extends ServerServiceBase {
     bindEvents(this, new Events(...serviceEvents(key, "lifecycle")))
   }
 
-  public async enabled() {
+  public override async enabled() {
     const answer = await wire.request(["service-enabled", this.key]) as [boolean]
     return answer[0]
   }
 
-  public async waitReady(timeout?: number) {
+  public override async waitReady(timeout?: number) {
     await wire.request(["service-wait-ready", this.key, timeout], timeout)
+  }
+
+  public override async createAndWaitReady(timeout?: number) {
+    await wire.request(["service-create-and-wait-ready", this.key, undefined, timeout], timeout)
+  }
+
+  public override timeout(milliseconds: number): TimedServerServiceHandler {
+    return Object.freeze({
+      waitReady: (timeout?: number) => this.waitReady(timeout ?? milliseconds),
+      createAndWaitReady: (timeout?: number) => this.createAndWaitReady(timeout ?? milliseconds)
+    })
   }
 
 }
 
-class ClientHandler<EventsMap extends object = {}> extends ClientServiceBase {
-  public readonly name: string
-  public readonly channel: ClientServiceChannel<EventsMap>
+class ClientHandler<EventsMap extends object = {}> extends ClientServiceHandler<EventsMap> {
+  public override readonly name: string
+  public override readonly channel: ClientServiceChannel<EventsMap>
 
   public constructor(private readonly key: ServiceKey & { endpoint: "client" }) {
     super()
@@ -93,13 +138,26 @@ class ClientHandler<EventsMap extends object = {}> extends ClientServiceBase {
     bindEvents(this, new Events(...serviceEvents(key, "lifecycle")))
   }
 
-  public async enabled() {
+  public override async enabled() {
     const answer = await wire.request(["service-enabled", this.key]) as [boolean]
     return answer[0]
   }
 
-  public async waitReady(timeout?: number) {
+  public override async waitReady(timeout?: number) {
     await wire.request(["service-wait-ready", this.key, timeout], timeout)
+  }
+
+  public override async createAndWaitReady(client?: LaunchClient, timeout?: number) {
+    await wire.request(["service-create-and-wait-ready", this.key, client, timeout], timeout)
+  }
+
+  public override timeout(milliseconds: number): TimedClientServiceHandler {
+    return Object.freeze({
+      waitReady: (timeout?: number) => this.waitReady(timeout ?? milliseconds),
+      createAndWaitReady: (client?: LaunchClient, timeout?: number) => {
+        return this.createAndWaitReady(client, timeout ?? milliseconds)
+      }
+    })
   }
 }
 

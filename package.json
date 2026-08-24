@@ -1,6 +1,6 @@
 {
   "name": "@phreshos/server",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "The SDK used by a Program's server endpoint.",
   "type": "module",
   "main": "dist/main.js",

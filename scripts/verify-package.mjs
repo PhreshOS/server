@@ -95,6 +95,10 @@ assert.equal("program" in service, false)
 assert.equal("endpoint" in service, false)
 assert.equal(typeof service.enabled, "function")
 assert.equal(typeof service.waitReady, "function")
+assert.equal(typeof service.createAndWaitReady, "function")
+assert.equal(typeof service.timeout, "function")
+assert.equal(typeof service.timeout(1).waitReady, "function")
+assert.equal(typeof service.timeout(1).createAndWaitReady, "function")
 assert.equal("docs" in service, false)
 `
   )
@@ -123,6 +127,11 @@ type CounterEvents = { change: number }
 
 const theme: Promise<Readonly<ThemeProperties>> = host.theme.snapshot()
 const counter: ServerServiceHandler<CounterEvents> = host.service<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
+const counterReady: Promise<void> = counter.waitReady(10_000)
+const counterTimedReady: Promise<void> = counter.timeout(5_000).waitReady(10_000)
+const counterCreated: Promise<void> = counter.timeout(5_000).createAndWaitReady(10_000)
+const clientService = host.service({ program: "counter", endpoint: "client", name: "window" })
+const clientCreated: Promise<void> = clientService.timeout(5_000).createAndWaitReady({ minimize: true }, 10_000)
 const counterStop = counter.channel.subscribe("change", value => void value)
 const counterAnswer: Promise<number> = counter.channel.ask<number>("value")
 const expose: Promise<void> = current.enableService("state")
@@ -151,6 +160,10 @@ const serverWindowHasLocal: ServerWindowHasLocal = false
 
 void theme
 void counter
+void counterReady
+void counterTimedReady
+void counterCreated
+void clientCreated
 void counterStop
 void counterAnswer
 void expose

@@ -154,6 +154,26 @@ and their Endpoint declarations. `program.server?.hasService()` identifies a
 declared Service capability, while `await program.server?.docs()` reads its
 installed policy and API documentation before the Endpoint starts.
 
+Server-side Service handles can create their dedicated providing Process and
+wait for readiness without reproducing Program-specific launch rules:
+
+```ts
+await serverService.createAndWaitReady()
+await clientService.createAndWaitReady({ minimize: true })
+```
+
+Both readiness operations accept an optional timeout directly and expose an
+immutable timed view. A direct argument on the timed view takes precedence:
+
+```ts
+await service.waitReady(10_000)
+await service.timeout(5_000).waitReady()
+await service.timeout(5_000).waitReady(10_000)
+```
+
+The System owns the single deadline across Process creation, Endpoint startup,
+and Service readiness. The creation capability exists only in the Server SDK.
+
 `program.icon()` requests a guaranteed PNG `Blob` in `small`, `medium`, or
 `large` form without exposing the Program's source path or the system's private
 asset-hosting address. Omitting the size selects `medium`.

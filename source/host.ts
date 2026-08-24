@@ -5,14 +5,13 @@ import type {
   Layer,
   Position,
   ServedFile,
-  ClientServiceHandler,
-  ServerServiceHandler,
   ServiceKey,
   Size,
   Subscribable,
   ThemeProperties,
   WritableTheme
 } from "@phreshos/core"
+import type { ClientServiceHandler, ServerServiceHandler } from "./service.js"
 import Events from "./events.js"
 import {
   type Client,

@@ -32,7 +32,11 @@ import { area, sql, store, type ServerArea } from "./storage.js"
 import startup, { type ProgramStartup } from "./startup.js"
 import permission from "./permissions.js"
 import wire from "./wire.js"
-import { endpointService } from "./service.js"
+import {
+  endpointService,
+  type ClientServiceHandler,
+  type ServerServiceHandler
+} from "./service.js"
 
 export interface HandleAddress {
   identity: string
@@ -162,6 +166,9 @@ export interface Endpoint<Events extends object = {}> extends CoreEndpoint<Event
 export interface Server<Events extends object = {}> extends CoreServer<Events> {
   /** Returns the Process that owns this Server. */
   process(): Promise<Process>
+
+  /** Returns the Service currently exposed by this Server Endpoint. */
+  service<ServiceEvents extends object = {}>(): Promise<ServerServiceHandler<ServiceEvents> | null>
 }
 
 /** Server-visible Client handle. */
@@ -171,6 +178,9 @@ export interface Client<Events extends object = {}> extends CoreClient<Events> {
 
   /** Returns the Process that owns this Client. */
   process(): Promise<Process>
+
+  /** Returns the Service currently exposed by this Client Endpoint. */
+  service<ServiceEvents extends object = {}>(): Promise<ClientServiceHandler<ServiceEvents> | null>
 }
 
 /** Server-visible Client-owned Window capability. */
