@@ -110,9 +110,12 @@ incarnation is ready. The Server SDK owns one deadline across readiness and the
 answer; absence or incarnation loss rejects without turning a boundary into a
 waiter.
 
-Server Program handles add `install()` and `fork()`. Their filesystem areas
-also expose `path()` and traversal-safe `resolve()`, because filesystem work is
-performed locally in the Server SDK after the Host supplies only the area root.
+Server Program handles add `install()` and `fork()`. `install()` is an async
+generator that opens immediately, yields ordered `stdout` and `stderr` command
+chunks, completes only after installation succeeds, and throws the owning
+System error when installation fails. Their filesystem areas also expose
+`path()` and traversal-safe `resolve()`, because filesystem work is performed
+locally in the Server SDK after the Host supplies only the area root.
 Object descriptions passed to `host.program.create()` therefore require an
 explicit absolute storage root as well as at least one declared Endpoint.
 

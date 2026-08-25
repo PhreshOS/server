@@ -15,6 +15,7 @@ import {
   type Outcome,
   type Position,
   type ProgramIconSize,
+  type ProgramInstallChunk,
   type ProgramPermission,
   type ProgramProcess as CoreProgramProcess,
   type ProgramArea as CoreProgramArea,
@@ -113,8 +114,8 @@ export interface Program<Events extends object = {}> extends Omit<CoreProgram<Ev
   /** Operations and lifecycle observation for this Program's Processes. */
   readonly process: ProgramProcess
 
-  /** Installs this Program and returns the same handle. */
-  install(): Promise<this>
+  /** Installs this Program while yielding its command output in order. */
+  install(): AsyncGenerator<ProgramInstallChunk, void, void>
 
   /** Creates a new runtime Program with the supplied stable identity. */
   fork(identity: string): Promise<Program>
@@ -255,9 +256,10 @@ class ProgramHandle extends ProgramBase {
     return answer[0]
   }
 
-  public async install() {
-    await wire.request(["install", this.address])
-    return this
+  public async *install() {
+    for await (const value of wire.stream(["install", this.address])) {
+      yield programInstallChunk(value)
+    }
   }
 
   public async fork(identity: string) {
@@ -273,6 +275,16 @@ class ProgramHandle extends ProgramBase {
     await wire.request(["forget", this.address])
   }
 
+}
+
+function programInstallChunk(value: unknown): ProgramInstallChunk {
+  const chunk = value as Partial<ProgramInstallChunk> | null
+
+  if (!chunk || (chunk.stream !== "stdout" && chunk.stream !== "stderr") || typeof chunk.text !== "string") {
+    throw new Error("The host returned an invalid Program install chunk")
+  }
+
+  return Object.freeze({ stream: chunk.stream, text: chunk.text })
 }
 
 function declaration(record: EndpointDeclarationRecord): EndpointDeclaration {
