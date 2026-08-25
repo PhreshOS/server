@@ -82,6 +82,8 @@ assert.equal(typeof current.disableService, "function")
 assert.equal("enableService" in current.client, false)
 assert.equal("disableService" in current.client, false)
 assert.equal(typeof host.theme.snapshot, "function")
+assert.equal(typeof host.storage.text, "function")
+assert.equal(typeof host.storage.resolve, "function")
 assert.equal(typeof host.desktopWallpaper.set, "function")
 assert.equal(typeof host.program.list, "function")
 assert.equal(typeof host.process.list, "function")
@@ -121,6 +123,9 @@ setTimeout(() => process.exit(0), 25)
 type CounterEvents = { change: number }
 
 const theme: Promise<Readonly<ThemeProperties>> = host.theme.snapshot()
+const homeFile: Promise<string> = host.storage.text("example.txt")
+// @ts-expect-error file reads require at least one path segment
+host.storage.text()
 const counter: ServerServiceHandler<CounterEvents> = host.service<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
 const counterReady: Promise<void> = counter.waitReady(10_000)
 const clientService = host.service({ program: "counter", endpoint: "client", name: "window" })
@@ -151,6 +156,7 @@ type ServerWindowHasLocal = "local" extends keyof Client["window"] ? true : fals
 const serverWindowHasLocal: ServerWindowHasLocal = false
 
 void theme
+void homeFile
 void counter
 void counterReady
 void clientService

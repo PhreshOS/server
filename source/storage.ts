@@ -25,9 +25,39 @@ export interface Storage extends CoreStorage {
 
 /** Server-local implementation of one Program-owned filesystem area. */
 export function area(program: HandleAddress, which: "data" | "cache"): Storage {
-  async function path() {
+  return createStorage(async function () {
     const answer = await wire.request([which, program, "path"]) as [string]
     return answer[0]
+  }, `this Program's ${which}`)
+}
+
+/** Server-local access to the native home directory supplied by the System. */
+export function hostStorage(): Storage {
+  return createStorage(async function () {
+    const answer = await wire.request(["host-storage", "path"]) as [string]
+    return answer[0]
+  }, "the native home directory")
+}
+
+function createStorage(root: () => Promise<string>, label: string): Storage {
+  let resolvedRoot: Promise<string> | null = null
+
+  async function path() {
+    if (!resolvedRoot) {
+      const resolving = root().then(value => {
+        if (!isAbsolute(value)) throw new Error("The host returned an invalid Storage directory")
+        return value
+      })
+
+      const retained = resolving.catch(error => {
+        if (resolvedRoot === retained) resolvedRoot = null
+        throw error
+      })
+
+      resolvedRoot = retained
+    }
+
+    return resolvedRoot
   }
 
   async function resolve(...parts: string[]) {
@@ -35,19 +65,17 @@ export function area(program: HandleAddress, which: "data" | "cache"): Storage {
     return contained(root, parts)
   }
 
-  async function stream(...parts: string[]) {
+  async function stream(...parts: [string, ...string[]]) {
     const destination = await resolve(...parts)
     const found = describe(destination)
 
-    if (!found) throw new Error(`There is no ${parts.join("/")} in this Program's ${which}`)
+    if (!found) throw new Error(`There is no ${parts.join("/")} in ${label}`)
     if (found.kind !== "file") throw new Error(`${parts.join("/")} is not a file`)
 
     return Readable.toWeb(createReadStream(destination)) as unknown as ReadableStream<Uint8Array>
   }
 
-  async function write(...args: [...path: string[], value: unknown]) {
-    if (args.length < 2) throw new Error("Writing takes a file name and what to write")
-
+  async function write(...args: [...path: [string, ...string[]], value: unknown]) {
     const parts = args.slice(0, -1) as string[]
     const destination = await resolve(...parts)
     const temporary = join(dirname(destination), `.${randomUUID()}.writing`)
@@ -76,7 +104,7 @@ export function area(program: HandleAddress, which: "data" | "cache"): Storage {
     async text(...parts) {
       return new Response(await stream(...parts)).text()
     },
-    async json<Value>(...parts: string[]) {
+    async json<Value>(...parts: [string, ...string[]]) {
       return JSON.parse(await new Response(await stream(...parts)).text()) as Value
     },
     write,

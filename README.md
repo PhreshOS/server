@@ -119,6 +119,11 @@ locally in the Server SDK after the Host supplies only the area root.
 Object descriptions passed to `host.program.create()` therefore require an
 explicit absolute storage root as well as at least one declared Endpoint.
 
+`host.storage` implements that same refined `Storage` contract against the
+native operating-system home directory. The System supplies the authoritative
+root; traversal and symbolic-link escape remain rejected by the SDK before any
+filesystem operation.
+
 Host registries are separated by owner. Reads, commands, and the complete
 subscription contract live on their relevant capability rather than directly
 on `host`:

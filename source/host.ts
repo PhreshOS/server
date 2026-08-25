@@ -30,6 +30,7 @@ import ServerTheme from "./theme.js"
 import { ServerDesktopWallpaper, ServerSignInWallpaper } from "./wallpaper.js"
 import wire from "./wire.js"
 import { prepareService } from "./service.js"
+import { hostStorage, type Storage } from "./storage.js"
 
 /** Resolved production description for a Program's Server. */
 export type ServerDescription = Readonly<{
@@ -171,6 +172,9 @@ export interface HostProcess extends Subscribable<ProcessHostEvents, never> {
 
 /** Authoritative system capabilities available to a Server endpoint. */
 export interface Host {
+  /** Native operating-system home storage available to Server endpoints. */
+  readonly storage: Storage
+
   /** Observable system Theme authority. */
   readonly theme: WritableTheme<ThemeProperties>
 
@@ -193,6 +197,7 @@ export interface Host {
 }
 
 class ServerHost {
+  public readonly storage = hostStorage()
   public readonly theme = new ServerTheme()
   public readonly signInWallpaper = new ServerSignInWallpaper()
   public readonly desktopWallpaper = new ServerDesktopWallpaper()
