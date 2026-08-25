@@ -1,9 +1,10 @@
-import type { EntryStat, ProgramArea, ProgramSql, ProgramStore } from "@phreshos/core"
+import type { EntryStat, ProgramSql, ProgramStore, Storage as CoreStorage } from "@phreshos/core"
 import { randomUUID } from "node:crypto"
 import {
   createReadStream,
   createWriteStream,
   mkdirSync,
+  lstatSync,
   readdirSync,
   renameSync,
   rmSync,
@@ -17,13 +18,13 @@ import type { ReadableStream as NodeReadableStream } from "node:stream/web"
 import wire from "./wire.js"
 import type { HandleAddress } from "./domain.js"
 
-export interface ServerArea extends ProgramArea {
+export interface Storage extends CoreStorage {
   path(): Promise<string>
   resolve(...path: string[]): Promise<string>
 }
 
 /** Server-local implementation of one Program-owned filesystem area. */
-export function area(program: HandleAddress, which: "data" | "cache"): ServerArea {
+export function area(program: HandleAddress, which: "data" | "cache"): Storage {
   async function path() {
     const answer = await wire.request([which, program, "path"]) as [string]
     return answer[0]
@@ -31,14 +32,7 @@ export function area(program: HandleAddress, which: "data" | "cache"): ServerAre
 
   async function resolve(...parts: string[]) {
     const root = await path()
-    const destination = join(root, ...parts)
-    const step = relative(root, destination)
-
-    if (step === ".." || step.startsWith(`..${sep}`) || isAbsolute(step)) {
-      throw new Error("A storage path may not leave its area")
-    }
-
-    return destination
+    return contained(root, parts)
   }
 
   async function stream(...parts: string[]) {
@@ -96,12 +90,42 @@ export function area(program: HandleAddress, which: "data" | "cache"): ServerAre
       if (!parts.length) throw new Error("Emptying a place is clear, not delete")
       rmSync(await resolve(...parts), { recursive: true, force: true })
     },
-    async clear() {
-      const root = await path()
-      rmSync(root, { recursive: true, force: true })
-      mkdirSync(root, { recursive: true })
+    async clear(...parts) {
+      const destination = await resolve(...parts)
+      const found = describe(destination)
+
+      if (found && found.kind !== "directory") throw new Error("Only a storage directory can be cleared")
+
+      rmSync(destination, { recursive: true, force: true })
+      mkdirSync(destination, { recursive: true })
     }
   }
+}
+
+function contained(root: string, parts: string[]) {
+  const destination = join(root, ...parts)
+  const step = relative(root, destination)
+
+  if (step === ".." || step.startsWith(`..${sep}`) || isAbsolute(step)) {
+    throw new Error("A storage path may not leave its configured directory")
+  }
+
+  let current = root
+
+  for (const part of step.split(sep).filter(Boolean)) {
+    current = join(current, part)
+
+    try {
+      if (lstatSync(current).isSymbolicLink()) {
+        throw new Error("A storage path may not pass through a symbolic link")
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") break
+      throw error
+    }
+  }
+
+  return destination
 }
 
 export function store(program: HandleAddress): ProgramStore {

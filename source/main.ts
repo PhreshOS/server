@@ -15,6 +15,7 @@ export {
 export { current, type Current, type CurrentClient } from "./current.js"
 export { type Answerer, type Channel } from "./channel.js"
 export { type ProgramStartup } from "./startup.js"
+export { type Storage } from "./storage.js"
 export {
   ClientServiceHandler,
   ServerServiceHandler
@@ -34,7 +35,6 @@ export {
   Program,
   Server,
   type Window,
-  type ProgramArea,
   type ProgramProcess
 } from "./domain.js"
 

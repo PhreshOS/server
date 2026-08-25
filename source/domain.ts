@@ -18,7 +18,6 @@ import {
   type ProgramCommandChunk,
   type ProgramPermission,
   type ProgramProcess as CoreProgramProcess,
-  type ProgramArea as CoreProgramArea,
   type Size,
   type TrafficMessage,
   type Window as CoreWindow,
@@ -29,7 +28,7 @@ import { randomUUID } from "node:crypto"
 import Events from "./events.js"
 import Deadline from "./deadline.js"
 import HandleRegistry from "./handle-registry.js"
-import { area, sql, store, type ServerArea } from "./storage.js"
+import { area, sql, store, type Storage } from "./storage.js"
 import startup, { type ProgramStartup } from "./startup.js"
 import permission from "./permissions.js"
 import wire from "./wire.js"
@@ -42,15 +41,6 @@ import {
 export interface HandleAddress {
   identity: string
   reference: string
-}
-
-/** Server-side filesystem storage with access to its resolved host path. */
-export interface ProgramArea extends CoreProgramArea {
-  /** Returns the absolute host path of this storage area. */
-  path(): Promise<string>
-
-  /** Resolves path segments within this storage area without permitting escape. */
-  resolve(...path: string[]): Promise<string>
 }
 
 /** Client-safe Program data transported by the authoritative host. */
@@ -100,10 +90,10 @@ export type WindowRecord = WindowState
 /** Server-visible Program handle and privileged Program operations. */
 export interface Program<Events extends object = {}> extends Omit<CoreProgram<Events>, "process"> {
   /** Persistent filesystem data shared by every Process of this Program. */
-  readonly data: ProgramArea
+  readonly data: Storage
 
   /** Disposable filesystem data shared by every Process of this Program. */
-  readonly cache: ProgramArea
+  readonly cache: Storage
 
   /** Persistent Process launch used when the system starts. */
   readonly startup: ProgramStartup
@@ -196,8 +186,8 @@ const ClientBase = CoreClient as unknown as new () => object
 class ProgramHandle extends ProgramBase {
   public readonly identity: string
   public readonly reference: string
-  public readonly data: ServerArea
-  public readonly cache: ServerArea
+  public readonly data: Storage
+  public readonly cache: Storage
   public readonly store
   public readonly logs
   public readonly database
