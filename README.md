@@ -193,3 +193,17 @@ The system validates this through the same launch contract as
 `program.process.create()`. Setting startup does not create a Process immediately.
 `uninstall(false)` preserves the configuration but makes it inactive until the
 Program is installed again; removing everything deletes it.
+
+Installation and uninstallation expose any declared Server command output as
+ordered streams. Consuming the generator waits for the authoritative operation
+to finish:
+
+```ts
+for await (const chunk of program.install()) {
+  (chunk.stream === "stderr" ? process.stderr : process.stdout).write(chunk.text)
+}
+
+for await (const chunk of program.uninstall(true)) {
+  (chunk.stream === "stderr" ? process.stderr : process.stdout).write(chunk.text)
+}
+```

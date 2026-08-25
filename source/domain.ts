@@ -15,7 +15,7 @@ import {
   type Outcome,
   type Position,
   type ProgramIconSize,
-  type ProgramInstallChunk,
+  type ProgramCommandChunk,
   type ProgramPermission,
   type ProgramProcess as CoreProgramProcess,
   type ProgramArea as CoreProgramArea,
@@ -115,7 +115,7 @@ export interface Program<Events extends object = {}> extends Omit<CoreProgram<Ev
   readonly process: ProgramProcess
 
   /** Installs this Program while yielding its command output in order. */
-  install(): AsyncGenerator<ProgramInstallChunk, void, void>
+  install(): AsyncGenerator<ProgramCommandChunk, void, void>
 
   /** Creates a new runtime Program with the supplied stable identity. */
   fork(identity: string): Promise<Program>
@@ -258,7 +258,7 @@ class ProgramHandle extends ProgramBase {
 
   public async *install() {
     for await (const value of wire.stream(["install", this.address])) {
-      yield programInstallChunk(value)
+      yield programCommandChunk(value)
     }
   }
 
@@ -267,8 +267,10 @@ class ProgramHandle extends ProgramBase {
     return program(answer[0])
   }
 
-  public async uninstall(everything = false) {
-    await wire.request(["uninstall", this.address, everything])
+  public async *uninstall(everything = false) {
+    for await (const value of wire.stream(["uninstall", this.address, everything])) {
+      yield programCommandChunk(value)
+    }
   }
 
   public async forget() {
@@ -277,11 +279,11 @@ class ProgramHandle extends ProgramBase {
 
 }
 
-function programInstallChunk(value: unknown): ProgramInstallChunk {
-  const chunk = value as Partial<ProgramInstallChunk> | null
+function programCommandChunk(value: unknown): ProgramCommandChunk {
+  const chunk = value as Partial<ProgramCommandChunk> | null
 
   if (!chunk || (chunk.stream !== "stdout" && chunk.stream !== "stderr") || typeof chunk.text !== "string") {
-    throw new Error("The host returned an invalid Program install chunk")
+    throw new Error("The host returned an invalid Program command chunk")
   }
 
   return Object.freeze({ stream: chunk.stream, text: chunk.text })
