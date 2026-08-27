@@ -17,39 +17,27 @@ It uses the domain objects and shared contracts from `@phreshos/core` through
 a peer dependency. It does not redefine those objects, own client-side
 capabilities, or contain System and transport implementations.
 
-Its `System` contract exposes the observable system Theme with replacement
-authority, authoritative Program and Process discovery, runtime Program
-creation, lifecycle events, and publicly served values. `system.theme.snapshot()`
-explicitly and asynchronously reads the current value,
-`subscribe("change", listener)` receives only complete replacements published
-after registration, and `update()` asynchronously validates and replaces the
-Theme through the system authority. A subscription has no initial delivery or
-replay.
-
-`system.signInWallpaper` and `system.desktopWallpaper` are independent direct System
-capabilities. A served image or HTML file is selected by its generated
-filename, while the desktop may instead select a Program that declares a
-Client:
+Its `System` contract exposes the complete unresolved Appearance with
+replacement authority, authoritative Program and Process discovery, runtime
+Program creation, lifecycle events, and publicly served values.
+`system.appearance.snapshot()` explicitly reads current authoritative state;
+`subscribe("change", listener)` receives only replacements published after
+registration, and `update()` validates and persists a complete replacement.
+Wallpaper filenames are ordinary Appearance values rather than separate SDK
+capabilities:
 
 ```ts
 const served = await system.serve(file)
+const appearance = await system.appearance.snapshot()
 
-await system.signInWallpaper.set(served.file)
-await system.desktopWallpaper.set(served.file)
-await system.desktopWallpaper.setProgram(program, {
-  name: "wallpaper",
-  server: false,
-  client: { location: "/ambient" },
-  options: { mode: "calm" }
+await system.appearance.update({
+  ...appearance,
+  desktopWallpaper: {
+    ...appearance.desktopWallpaper,
+    light: served.file
+  }
 })
-
-await system.signInWallpaper.remove()
-await system.desktopWallpaper.remove()
 ```
-
-Selecting or removing a desktop choice exits the previous wallpaper Process.
-Its Client and visual state are system-managed; complete Process exit remains
-available and reveals the bundled desktop fallback.
 
 Its JavaScript entry point adapts the Process IPC boundary to these contracts.
 The SDK owns callbacks, waits, queues, and their cleanup; the boundary owns

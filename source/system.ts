@@ -1,15 +1,12 @@
 import type {
-  DesktopWallpaper,
   Exit,
-  FileWallpaper,
   Layer,
   Position,
   ServedFile,
   ServiceKey,
   Size,
   Subscribable,
-  ThemeProperties,
-  WritableTheme
+  WritableAppearance
 } from "@phreshos/core"
 import type { ClientServiceHandler, ServerServiceHandler } from "./service.js"
 import Events from "./events.js"
@@ -26,8 +23,7 @@ import {
   type Server
 } from "./domain.js"
 import serve from "./served.js"
-import ServerTheme from "./theme.js"
-import { ServerDesktopWallpaper, ServerSignInWallpaper } from "./wallpaper.js"
+import ServerAppearance from "./appearance.js"
 import wire from "./wire.js"
 import { prepareService } from "./service.js"
 import { systemStorage, type Storage } from "./storage.js"
@@ -175,14 +171,8 @@ export interface System {
   /** Native operating-system home storage available to Server endpoints. */
   readonly storage: Storage
 
-  /** Observable system Theme authority. */
-  readonly theme: WritableTheme<ThemeProperties>
-
-  /** Authoritative wallpaper visible before authentication. */
-  readonly signInWallpaper: FileWallpaper
-
-  /** Authoritative wallpaper visible within authenticated desktops. */
-  readonly desktopWallpaper: DesktopWallpaper
+  /** Complete unresolved Appearance authority owned by the System. */
+  readonly appearance: WritableAppearance
 
   readonly program: SystemProgram
   readonly process: SystemProcess
@@ -198,9 +188,7 @@ export interface System {
 
 class ServerSystem {
   public readonly storage = systemStorage()
-  public readonly theme = new ServerTheme()
-  public readonly signInWallpaper = new ServerSignInWallpaper()
-  public readonly desktopWallpaper = new ServerDesktopWallpaper()
+  public readonly appearance = new ServerAppearance() as unknown as WritableAppearance
   public readonly program = new ServerSystemProgram() as unknown as SystemProgram
   public readonly process = new ServerSystemProcess() as unknown as SystemProcess
 

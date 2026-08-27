@@ -81,10 +81,9 @@ assert.equal(typeof current.enableService, "function")
 assert.equal(typeof current.disableService, "function")
 assert.equal("enableService" in current.client, false)
 assert.equal("disableService" in current.client, false)
-assert.equal(typeof system.theme.snapshot, "function")
+assert.equal(typeof system.appearance.snapshot, "function")
 assert.equal(typeof system.storage.text, "function")
 assert.equal(typeof system.storage.resolve, "function")
-assert.equal(typeof system.desktopWallpaper.set, "function")
 assert.equal(typeof system.program.list, "function")
 assert.equal(typeof system.process.list, "function")
 assert.equal(typeof system.service, "function")
@@ -118,11 +117,11 @@ setTimeout(() => process.exit(0), 25)
 
   writeFileSync(
     join(consumer, "consumer.ts"),
-    `import { current, system, Client, Server, type ServerServiceHandler, type ThemeProperties } from "@phreshos/server"
+    `import { current, system, Client, Server, type Appearance, type ServerServiceHandler } from "@phreshos/server"
 
 type CounterEvents = { change: number }
 
-const theme: Promise<Readonly<ThemeProperties>> = system.theme.snapshot()
+const appearance: Promise<Appearance> = system.appearance.snapshot()
 const homeFile: Promise<string> = system.storage.text("example.txt")
 // @ts-expect-error file reads require at least one path segment
 system.storage.text()
@@ -155,7 +154,7 @@ const serverWindowHasSurface: ServerWindowHasSurface = false
 type ServerWindowHasLocal = "local" extends keyof Client["window"] ? true : false
 const serverWindowHasLocal: ServerWindowHasLocal = false
 
-void theme
+void appearance
 void homeFile
 void counter
 void counterReady
