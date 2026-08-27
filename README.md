@@ -10,41 +10,41 @@ active testing. The architecture's components will be released in stages as
 their contracts and integrations are verified.
 
 `@phreshos/server` is not intended to be used on its own. It requires the
-shared contracts from `@phreshos/core` and a compatible system host to provide
+shared contracts from `@phreshos/core` and a compatible System runtime to provide
 its runtime boundary.
 
 It uses the domain objects and shared contracts from `@phreshos/core` through
 a peer dependency. It does not redefine those objects, own client-side
-capabilities, or contain host and transport implementations.
+capabilities, or contain System and transport implementations.
 
-Its `Host` contract exposes the observable system Theme with replacement
+Its `System` contract exposes the observable system Theme with replacement
 authority, authoritative Program and Process discovery, runtime Program
-creation, lifecycle events, and publicly served values. `host.theme.snapshot()`
+creation, lifecycle events, and publicly served values. `system.theme.snapshot()`
 explicitly and asynchronously reads the current value,
 `subscribe("change", listener)` receives only complete replacements published
 after registration, and `update()` asynchronously validates and replaces the
 Theme through the system authority. A subscription has no initial delivery or
 replay.
 
-`host.signInWallpaper` and `host.desktopWallpaper` are independent direct Host
+`system.signInWallpaper` and `system.desktopWallpaper` are independent direct System
 capabilities. A served image or HTML file is selected by its generated
 filename, while the desktop may instead select a Program that declares a
 Client:
 
 ```ts
-const served = await host.serve(file)
+const served = await system.serve(file)
 
-await host.signInWallpaper.set(served.file)
-await host.desktopWallpaper.set(served.file)
-await host.desktopWallpaper.setProgram(program, {
+await system.signInWallpaper.set(served.file)
+await system.desktopWallpaper.set(served.file)
+await system.desktopWallpaper.setProgram(program, {
   name: "wallpaper",
   server: false,
   client: { location: "/ambient" },
   options: { mode: "calm" }
 })
 
-await host.signInWallpaper.remove()
-await host.desktopWallpaper.remove()
+await system.signInWallpaper.remove()
+await system.desktopWallpaper.remove()
 ```
 
 Selecting or removing a desktop choice exits the previous wallpaper Process.
@@ -84,7 +84,7 @@ resulting desktop material.
 The package provides two contextual runtime entry points:
 
 ```ts
-import { host, current } from "@phreshos/server"
+import { system, current } from "@phreshos/server"
 ```
 
 It also re-exports the shared Core runtime classes—`Program`, `Process`,
@@ -115,26 +115,26 @@ generator that opens immediately, yields ordered `stdout` and `stderr` command
 chunks, completes only after installation succeeds, and throws the owning
 System error when installation fails. Their `Storage` values also expose
 `path()` and traversal-safe `resolve()`, because filesystem work is performed
-locally in the Server SDK after the Host supplies only the area root.
-Object descriptions passed to `host.program.create()` therefore require an
+locally in the Server SDK after the System supplies only the area root.
+Object descriptions passed to `system.program.create()` therefore require an
 explicit absolute storage root as well as at least one declared Endpoint.
 
-`host.storage` implements that same refined `Storage` contract against the
+`system.storage` implements that same refined `Storage` contract against the
 native operating-system home directory. The System supplies the authoritative
 root; traversal and symbolic-link escape remain rejected by the SDK before any
 filesystem operation.
 
-Host registries are separated by owner. Reads, commands, and the complete
+System registries are separated by owner. Reads, commands, and the complete
 subscription contract live on their relevant capability rather than directly
-on `host`:
+on `system`:
 
 ```ts
-const programs = await host.program.list()
-const program = await host.program.find("counter")
-const processes = await host.process.list()
+const programs = await system.program.list()
+const program = await system.program.find("counter")
+const processes = await system.process.list()
 
-const stopPrograms = host.program.subscribe("create", value => undefined)
-const stopProcesses = host.process.subscribe("exit", value => undefined)
+const stopPrograms = system.program.subscribe("create", value => undefined)
+const stopProcesses = system.process.subscribe("exit", value => undefined)
 ```
 
 A Program owns its scoped Process capability:
@@ -154,7 +154,7 @@ const shared = await program.process.findOrCreate({
 launches converge on one named Process; a different launch for that name
 rejects instead of reconfiguring the existing Process.
 
-`host.service(key)` creates the exact opaque service handle. The
+`system.service(key)` creates the exact opaque service handle. The
 handler exposes its authored `name`, `enabled()`, `waitReady()`, lifecycle
 subscriptions, and channel; it does not expose its Program or Endpoint as
 separate fields. Services are runtime bindings explicitly enabled by their

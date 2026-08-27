@@ -32,7 +32,7 @@ export function area(program: HandleAddress, which: "data" | "cache"): Storage {
 }
 
 /** Server-local access to the native home directory supplied by the System. */
-export function hostStorage(): Storage {
+export function systemStorage(): Storage {
   return createStorage(async function () {
     const answer = await wire.request(["host-storage", "path"]) as [string]
     return answer[0]
@@ -45,7 +45,7 @@ function createStorage(root: () => Promise<string>, label: string): Storage {
   async function path() {
     if (!resolvedRoot) {
       const resolving = root().then(value => {
-        if (!isAbsolute(value)) throw new Error("The host returned an invalid Storage directory")
+        if (!isAbsolute(value)) throw new Error("The system returned an invalid Storage directory")
         return value
       })
 

@@ -30,7 +30,7 @@ import ServerTheme from "./theme.js"
 import { ServerDesktopWallpaper, ServerSignInWallpaper } from "./wallpaper.js"
 import wire from "./wire.js"
 import { prepareService } from "./service.js"
-import { hostStorage, type Storage } from "./storage.js"
+import { systemStorage, type Storage } from "./storage.js"
 
 /** Resolved production description for a Program's Server. */
 export type ServerDescription = Readonly<{
@@ -113,7 +113,7 @@ export type ProgramDescription = Description & (
 )
 
 /** An uninstall reported with the affected Program and removal scope. */
-export type ProgramHostUninstall = Readonly<{
+export type SystemProgramUninstall = Readonly<{
   /** Program that left the installed state. */
   program: Program
 
@@ -122,13 +122,13 @@ export type ProgramHostUninstall = Readonly<{
 }>
 
 /** A Process exit reported with the Process that ended. */
-export type ProcessHostExit = Exit & Readonly<{
+export type SystemProcessExit = Exit & Readonly<{
   /** Process that ended. */
   process: Process
 }>
 
-/** Authoritative lifecycle events visible to the Server host. */
-export type ProgramHostEvents = {
+/** Authoritative lifecycle events visible to the Server system. */
+export type SystemProgramEvents = {
   /** A Program entered the runtime registry. */
   create: Program
 
@@ -139,11 +139,11 @@ export type ProgramHostEvents = {
   install: Program
 
   /** A Program left the installed state. */
-  uninstall: ProgramHostUninstall
+  uninstall: SystemProgramUninstall
 }
 
-/** Authoritative Process lifecycle events visible to the Server host. */
-export type ProcessHostEvents = {
+/** Authoritative Process lifecycle events visible to the Server system. */
+export type SystemProcessEvents = {
   /** One Process Endpoint entered a new live incarnation. */
   endpointStart: Server | Client
 
@@ -154,24 +154,24 @@ export type ProcessHostEvents = {
   create: Process
 
   /** A Process left the runtime set. */
-  exit: ProcessHostExit
+  exit: SystemProcessExit
 }
 
 /** Authoritative Program registry available to a Server endpoint. */
-export interface HostProgram extends Subscribable<ProgramHostEvents, never> {
+export interface SystemProgram extends Subscribable<SystemProgramEvents, never> {
   list(onlyInstalled?: boolean): Promise<Program[]>
   find(identity: string): Promise<Program | null>
   create(source: ProgramDescription | string): Promise<Program>
 }
 
 /** Authoritative Process registry available to a Server endpoint. */
-export interface HostProcess extends Subscribable<ProcessHostEvents, never> {
+export interface SystemProcess extends Subscribable<SystemProcessEvents, never> {
   list(): Promise<Process[]>
   find(identity: string): Promise<Process | null>
 }
 
 /** Authoritative system capabilities available to a Server endpoint. */
-export interface Host {
+export interface System {
   /** Native operating-system home storage available to Server endpoints. */
   readonly storage: Storage
 
@@ -184,25 +184,25 @@ export interface Host {
   /** Authoritative wallpaper visible within authenticated desktops. */
   readonly desktopWallpaper: DesktopWallpaper
 
-  readonly program: HostProgram
-  readonly process: HostProcess
+  readonly program: SystemProgram
+  readonly process: SystemProcess
 
   /** Returns a stable handle for one exact Service identity. */
   service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
   service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
 
-  /** Publishes a value through the host and returns its public file metadata. */
+  /** Publishes a value through the system and returns its public file metadata. */
   serve(value: unknown): Promise<ServedFile>
 
 }
 
-class ServerHost {
-  public readonly storage = hostStorage()
+class ServerSystem {
+  public readonly storage = systemStorage()
   public readonly theme = new ServerTheme()
   public readonly signInWallpaper = new ServerSignInWallpaper()
   public readonly desktopWallpaper = new ServerDesktopWallpaper()
-  public readonly program = new ServerHostProgram() as unknown as HostProgram
-  public readonly process = new ServerHostProcess() as unknown as HostProcess
+  public readonly program = new ServerSystemProgram() as unknown as SystemProgram
+  public readonly process = new ServerSystemProcess() as unknown as SystemProcess
 
   public service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
   public service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
@@ -211,12 +211,12 @@ class ServerHost {
   public serve(value: unknown) { return serve(value) }
 }
 
-class ServerHostProgram extends Events {
+class ServerSystemProgram extends Events {
   public constructor() {
     super(
-      (event, listener, impossible) => wire.on("host-program", event, (...values) => listener(hostProgramEvent(event, values)), null, impossible),
+      (event, listener, impossible) => wire.on("host-program", event, (...values) => listener(systemProgramEvent(event, values)), null, impossible),
       observer => wire.onAll("host-program", (event, ...values) => {
-        if (typeof event === "string") observer(event, hostProgramEvent(event, values))
+        if (typeof event === "string") observer(event, systemProgramEvent(event, values))
       })
     )
   }
@@ -237,12 +237,12 @@ class ServerHostProgram extends Events {
   }
 }
 
-class ServerHostProcess extends Events {
+class ServerSystemProcess extends Events {
   public constructor() {
     super(
-      (event, listener, impossible) => wire.on("host-process", event, (...values) => listener(hostProcessEvent(event, values)), null, impossible),
+      (event, listener, impossible) => wire.on("host-process", event, (...values) => listener(systemProcessEvent(event, values)), null, impossible),
       observer => wire.onAll("host-process", (event, ...values) => {
-        if (typeof event === "string") observer(event, hostProcessEvent(event, values))
+        if (typeof event === "string") observer(event, systemProcessEvent(event, values))
       })
     )
   }
@@ -258,7 +258,7 @@ class ServerHostProcess extends Events {
   }
 }
 
-function hostProcessEvent(event: string, values: unknown[]): unknown {
+function systemProcessEvent(event: string, values: unknown[]): unknown {
   if (event === "endpointStart" || event === "endpointStop") return lifecycleEndpoint(values[1], values[2])
 
   if (event === "create") {
@@ -272,7 +272,7 @@ function hostProcessEvent(event: string, values: unknown[]): unknown {
   return values[0]
 }
 
-function hostProgramEvent(event: string, values: unknown[]): unknown {
+function systemProgramEvent(event: string, values: unknown[]): unknown {
   if (event === "create" || event === "forget" || event === "install") {
     return program(values[1] as ProgramRecord)
   }
@@ -285,4 +285,4 @@ function hostProgramEvent(event: string, values: unknown[]): unknown {
 }
 
 /** Authoritative system capabilities for the currently executing Server. */
-export const host = new ServerHost() as unknown as Host
+export const system = new ServerSystem() as unknown as System

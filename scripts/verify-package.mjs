@@ -67,7 +67,7 @@ try {
     join(consumer, "runtime.mjs"),
     `import assert from "node:assert/strict"
 import * as core from "@phreshos/core"
-import { Client, Endpoint, Process, Program, Server, ServerServiceHandler, ServiceHandler, current, host } from "@phreshos/server"
+import { Client, Endpoint, Process, Program, Server, ServerServiceHandler, ServiceHandler, current, system } from "@phreshos/server"
 
 assert.equal(Program, core.Program)
 assert.equal(Process, core.Process)
@@ -81,16 +81,16 @@ assert.equal(typeof current.enableService, "function")
 assert.equal(typeof current.disableService, "function")
 assert.equal("enableService" in current.client, false)
 assert.equal("disableService" in current.client, false)
-assert.equal(typeof host.theme.snapshot, "function")
-assert.equal(typeof host.storage.text, "function")
-assert.equal(typeof host.storage.resolve, "function")
-assert.equal(typeof host.desktopWallpaper.set, "function")
-assert.equal(typeof host.program.list, "function")
-assert.equal(typeof host.process.list, "function")
-assert.equal(typeof host.service, "function")
-assert.equal("subscribe" in host, false)
-const service = host.service({ program: "counter", endpoint: "server", name: "state" })
-assert.equal(service, host.service({ program: "counter", endpoint: "server", name: "state" }))
+assert.equal(typeof system.theme.snapshot, "function")
+assert.equal(typeof system.storage.text, "function")
+assert.equal(typeof system.storage.resolve, "function")
+assert.equal(typeof system.desktopWallpaper.set, "function")
+assert.equal(typeof system.program.list, "function")
+assert.equal(typeof system.process.list, "function")
+assert.equal(typeof system.service, "function")
+assert.equal("subscribe" in system, false)
+const service = system.service({ program: "counter", endpoint: "server", name: "state" })
+assert.equal(service, system.service({ program: "counter", endpoint: "server", name: "state" }))
 assert(service instanceof ServiceHandler)
 assert(service instanceof ServerServiceHandler)
 assert.equal("program" in service, false)
@@ -106,8 +106,8 @@ assert.equal(typeof service.waitReady, "function")
 
   writeFileSync(
     join(consumer, "startup.mjs"),
-    `import { host } from "@phreshos/server"
-host.service({ program: "counter", endpoint: "server", name: "state" })
+    `import { system } from "@phreshos/server"
+system.service({ program: "counter", endpoint: "server", name: "state" })
 setTimeout(() => process.exit(0), 25)
 `
   )
@@ -118,17 +118,17 @@ setTimeout(() => process.exit(0), 25)
 
   writeFileSync(
     join(consumer, "consumer.ts"),
-    `import { current, host, Client, Server, type ServerServiceHandler, type ThemeProperties } from "@phreshos/server"
+    `import { current, system, Client, Server, type ServerServiceHandler, type ThemeProperties } from "@phreshos/server"
 
 type CounterEvents = { change: number }
 
-const theme: Promise<Readonly<ThemeProperties>> = host.theme.snapshot()
-const homeFile: Promise<string> = host.storage.text("example.txt")
+const theme: Promise<Readonly<ThemeProperties>> = system.theme.snapshot()
+const homeFile: Promise<string> = system.storage.text("example.txt")
 // @ts-expect-error file reads require at least one path segment
-host.storage.text()
-const counter: ServerServiceHandler<CounterEvents> = host.service<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
+system.storage.text()
+const counter: ServerServiceHandler<CounterEvents> = system.service<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
 const counterReady: Promise<void> = counter.waitReady(10_000)
-const clientService = host.service({ program: "counter", endpoint: "client", name: "window" })
+const clientService = system.service({ program: "counter", endpoint: "client", name: "window" })
 const counterStop = counter.channel.subscribe("change", value => void value)
 const counterAnswer: Promise<number> = counter.channel.ask<number>("value")
 const expose: Promise<void> = current.enableService("state")
@@ -140,7 +140,7 @@ const shared: Promise<import("@phreshos/server").Process> = program.process.find
   server: true,
   client: false
 })
-const stop = host.process.subscribe("endpointStop", endpoint => {
+const stop = system.process.subscribe("endpointStop", endpoint => {
   if (endpoint instanceof Server) void endpoint.process()
   if (endpoint instanceof Client) void endpoint.window.size()
 })

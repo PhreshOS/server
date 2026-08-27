@@ -111,7 +111,7 @@ class Wire {
     })
   }
 
-  /** Opens one long-running host operation and yields its ordered values. */
+  /** Opens one long-running system operation and yields its ordered values. */
   public stream(values: unknown[], timeout = defaultTimeout): AsyncIterableIterator<unknown> {
     const wire = this
 
@@ -160,7 +160,7 @@ class Wire {
       const resolving = this.request(["current-process"]).then(value => {
         const [record] = value as [{ identity?: unknown, reference?: unknown }]
         if (typeof record?.identity !== "string" || typeof record.reference !== "string") {
-          throw new Error("The host returned an invalid Process identity")
+          throw new Error("The system returned an invalid Process identity")
         }
         return { process: record.identity, reference: record.reference }
       })
@@ -402,7 +402,7 @@ class Wire {
       stream.failure = new Error("The boundary produced a stream value before opening the stream")
     } else if (operation === "data") {
       if (stream.queue.length >= maximumStreamQueue) {
-        stream.failure = new Error(`Host stream queue exceeded its capacity of ${maximumStreamQueue}`)
+        stream.failure = new Error(`System stream queue exceeded its capacity of ${maximumStreamQueue}`)
       } else {
         stream.queue.push(value)
       }

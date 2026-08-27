@@ -1,16 +1,16 @@
 export {
-  host,
-  type Host,
-  type HostProcess,
-  type HostProgram,
+  system,
+  type System,
+  type SystemProcess,
+  type SystemProgram,
   type ClientDescription,
-  type ProcessHostEvents,
-  type ProcessHostExit,
-  type ProgramHostEvents,
-  type ProgramHostUninstall,
+  type SystemProcessEvents,
+  type SystemProcessExit,
+  type SystemProgramEvents,
+  type SystemProgramUninstall,
   type ProgramDescription,
   type ServerDescription
-} from "./host.js"
+} from "./system.js"
 
 export { current, type Current, type CurrentClient } from "./current.js"
 export { type Answerer, type Channel } from "./channel.js"

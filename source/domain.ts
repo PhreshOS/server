@@ -43,7 +43,7 @@ export interface HandleAddress {
   reference: string
 }
 
-/** Client-safe Program data transported by the authoritative host. */
+/** Client-safe Program data transported by the authoritative system. */
 export interface EndpointDeclarationRecord {
   start: boolean
 }
@@ -273,7 +273,7 @@ function programCommandChunk(value: unknown): ProgramCommandChunk {
   const chunk = value as Partial<ProgramCommandChunk> | null
 
   if (!chunk || (chunk.stream !== "stdout" && chunk.stream !== "stderr") || typeof chunk.text !== "string") {
-    throw new Error("The host returned an invalid Program command chunk")
+    throw new Error("The system returned an invalid Program command chunk")
   }
 
   return Object.freeze({ stream: chunk.stream, text: chunk.text })
@@ -628,7 +628,7 @@ export function lifecycleEndpoint(record: unknown, kind: unknown) {
   const owner = process(record as ProcessRecord)
   if (kind === "server") return owner.server
   if (kind === "client") return owner.client
-  throw new Error("The host returned an invalid Endpoint lifecycle event")
+  throw new Error("The system returned an invalid Endpoint lifecycle event")
 }
 
 export function exit(code: unknown, signal: unknown): Exit {

@@ -9,7 +9,7 @@ import type { ReadableStream as NodeReadableStream } from "node:stream/web"
 import { content } from "./storage.js"
 import wire from "./wire.js"
 
-/** Writes one public value directly into the host-managed served-file area. */
+/** Writes one public value directly into the system-managed served-file area. */
 export default async function serve(value: unknown): Promise<ServedFile> {
   const answer = await wire.request(["serve"]) as [string, number]
   const [root, limit] = answer
