@@ -19,7 +19,7 @@ capabilities, or contain System and transport implementations.
 
 Its `System` contract exposes the complete unresolved Appearance with
 replacement authority, authoritative Program and Process discovery, runtime
-Program creation, lifecycle events, and publicly served values.
+Program creation, lifecycle events, and flat public uploads.
 `system.appearance.snapshot()` explicitly reads current authoritative state;
 `subscribe("change", listener)` receives only replacements published after
 registration, and `update()` validates and persists a complete replacement.
@@ -27,16 +27,19 @@ Wallpaper filenames are ordinary Appearance values rather than separate SDK
 capabilities:
 
 ```ts
-const served = await system.serve(file)
+const upload = await system.uploads.write(file)
+const bytes = await system.uploads.bytes(upload.file)
 const appearance = await system.appearance.snapshot()
 
 await system.appearance.update({
   ...appearance,
   desktopWallpaper: {
     ...appearance.desktopWallpaper,
-    light: served.file
+    light: upload.file
   }
 })
+
+void bytes
 ```
 
 Its JavaScript entry point adapts the Process IPC boundary to these contracts.

@@ -2,10 +2,10 @@ import type {
   Exit,
   Layer,
   Position,
-  ServedFile,
   ServiceKey,
   Size,
   Subscribable,
+  SystemUploads,
   WritableAppearance
 } from "@phreshos/core"
 import type { ClientServiceHandler, ServerServiceHandler } from "./service.js"
@@ -22,7 +22,7 @@ import {
   type ProgramRecord,
   type Server
 } from "./domain.js"
-import serve from "./served.js"
+import { uploads } from "./uploads.js"
 import ServerAppearance from "./appearance.js"
 import wire from "./wire.js"
 import { prepareService } from "./service.js"
@@ -177,12 +177,12 @@ export interface System {
   readonly program: SystemProgram
   readonly process: SystemProcess
 
+  /** Flat System-owned public uploads capability. */
+  readonly uploads: SystemUploads
+
   /** Returns a stable handle for one exact Service identity. */
   service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
   service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
-
-  /** Publishes a value through the system and returns its public file metadata. */
-  serve(value: unknown): Promise<ServedFile>
 
 }
 
@@ -191,12 +191,12 @@ class ServerSystem {
   public readonly appearance = new ServerAppearance() as unknown as WritableAppearance
   public readonly program = new ServerSystemProgram() as unknown as SystemProgram
   public readonly process = new ServerSystemProcess() as unknown as SystemProcess
+  public readonly uploads = uploads
 
   public service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
   public service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
   public service(key: ServiceKey) { return prepareService(key) }
 
-  public serve(value: unknown) { return serve(value) }
 }
 
 class ServerSystemProgram extends Events {

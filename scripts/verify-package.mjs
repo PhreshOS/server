@@ -82,6 +82,10 @@ assert.equal(typeof current.disableService, "function")
 assert.equal("enableService" in current.client, false)
 assert.equal("disableService" in current.client, false)
 assert.equal(typeof system.appearance.snapshot, "function")
+assert.equal(typeof system.uploads.write, "function")
+assert.equal(typeof system.uploads.stream, "function")
+assert.equal(typeof system.uploads.stat, "function")
+assert.equal("serve" in system, false)
 assert.equal(typeof system.storage.text, "function")
 assert.equal(typeof system.storage.resolve, "function")
 assert.equal(typeof system.program.list, "function")
@@ -117,11 +121,14 @@ setTimeout(() => process.exit(0), 25)
 
   writeFileSync(
     join(consumer, "consumer.ts"),
-    `import { current, system, Client, Server, type Appearance, type ServerServiceHandler } from "@phreshos/server"
+    `import { current, system, Client, Server, type Appearance, type ServerServiceHandler, type SystemUploads, type Upload } from "@phreshos/server"
 
 type CounterEvents = { change: number }
 
 const appearance: Promise<Appearance> = system.appearance.snapshot()
+const uploads: SystemUploads = system.uploads
+const upload: Promise<Upload> = uploads.write("hello")
+const uploadText: Promise<string> = uploads.text("00000000-0000-0000-0000-000000000000.txt")
 const homeFile: Promise<string> = system.storage.text("example.txt")
 // @ts-expect-error file reads require at least one path segment
 system.storage.text()
@@ -160,6 +167,8 @@ type ServerWindowHasLocal = "local" extends keyof Client["window"] ? true : fals
 const serverWindowHasLocal: ServerWindowHasLocal = false
 
 void appearance
+void upload
+void uploadText
 void homeFile
 void counter
 void counterReady
