@@ -11,6 +11,12 @@ const repository = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const temporary = mkdtempSync(join(tmpdir(), "phreshos-server-package-"))
 const cache = join(temporary, "npm-cache")
 
+assert.equal(
+  manifest.peerDependencies["@phreshos/core"],
+  manifest.devDependencies["@phreshos/core"],
+  "the published Core peer must match the verified Core dependency"
+)
+
 try {
   const output = execFileSync(
     "npm",
