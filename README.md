@@ -42,11 +42,13 @@ await system.appearance.update({
 void bytes
 ```
 
-Its JavaScript entry point adapts the Process IPC boundary to these contracts.
+Its JavaScript entry point adapts the Server runtime boundary to these contracts.
 The SDK owns callbacks, waits, queues, and their cleanup; the boundary owns
 only the forwarding registrations requested by the SDK.
 
-Importing the SDK injects no message into the child process. The endpoint may
+The same SDK works in either supported Server runtime: a child process uses its
+IPC channel, while a System-owned Worker uses its parent port. Importing the SDK
+injects no message into either runtime. The endpoint may
 announce its readiness outward, but identity, Theme, Process, readiness,
 lifecycle, and application values enter only in response to an explicit request
 or a live registration made by Program code.

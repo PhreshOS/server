@@ -4,6 +4,7 @@ import Deadline from "./deadline.js"
 import { defaultTimeout } from "./events.js"
 import type { HandleAddress } from "./domain.js"
 import { deserialize, serialize } from "./messagepack.js"
+import { parentPort } from "node:worker_threads"
 
 type Handler = (...values: unknown[]) => unknown
 type Failure = (error: Error) => void
@@ -41,8 +42,10 @@ class Wire {
 
   private identityPromise: Promise<{ process: string, reference: string }> | null = null
 
+  private readonly transport = endpointTransport()
+
   public constructor() {
-    process.on("message", message => {
+    this.transport.onMessage(message => {
       if (!(message instanceof Uint8Array)) return
 
       let decoded: unknown
@@ -83,11 +86,11 @@ class Wire {
       this.deliver(route, values)
     })
 
-    process.send?.(serialize(["boundary", "ready"]))
+    this.transport.send(serialize(["boundary", "ready"]))
   }
 
   public send(route: string, ...values: unknown[]) {
-    process.send?.(serialize([route, ...values]))
+    this.transport.send(serialize([route, ...values]))
   }
 
   public request(values: unknown[], timeout = defaultTimeout): Promise<unknown> {
@@ -419,6 +422,25 @@ class Wire {
     stream.wake?.()
     stream.wake = null
   }
+}
+
+function endpointTransport(): EndpointTransport {
+  const worker = parentPort
+
+  if (worker) return {
+    onMessage: listener => worker.on("message", listener),
+    send: message => worker.postMessage(message)
+  }
+
+  return {
+    onMessage: listener => { process.on("message", listener) },
+    send: message => { process.send?.(message) }
+  }
+}
+
+interface EndpointTransport {
+  onMessage(listener: (message: unknown) => void): void
+  send(message: Uint8Array): void
 }
 
 const maximumStreamQueue = 256

@@ -29,7 +29,7 @@ import { prepareService } from "./service.js"
 import { systemStorage, type Storage } from "./storage.js"
 
 /** Resolved production description for a Program's Server. */
-export type ServerDescription = Readonly<{
+type ServerDescriptionBase = Readonly<{
   /** Absolute directory containing the production Server files. */
   location: string
 
@@ -39,9 +39,20 @@ export type ServerDescription = Readonly<{
   /** Command used to install the Server's production dependencies. */
   installCommand?: string
 
-  /** Command used to start the Server from its production directory. */
-  startCommand: string
 }>
+
+export type ServerDescription = ServerDescriptionBase & (
+  | Readonly<{
+    /** Command used to start an isolated Server process. */
+    startCommand: string
+    entryFile?: never
+  }>
+  | Readonly<{
+    startCommand?: never
+    /** JavaScript module loaded as a worker owned by the System. */
+    entryFile: string
+  }>
+)
 
 /** Resolved production description for a Program's Client and initial Window. */
 export type ClientDescription = Readonly<{
