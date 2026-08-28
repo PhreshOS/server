@@ -1,15 +1,5 @@
 export {
-  system,
-  type System,
-  type SystemProcess,
-  type SystemProgram,
-  type ClientDescription,
-  type SystemProcessEvents,
-  type SystemProcessExit,
-  type SystemProgramEvents,
-  type SystemProgramUninstall,
-  type ProgramDescription,
-  type ServerDescription
+  system
 } from "./system.js"
 
 export { current, type Current, type CurrentClient } from "./current.js"
@@ -83,6 +73,24 @@ export type {
   SystemUploads,
   Upload,
   ServerTraffic,
+  System,
+  SystemProcess,
+  SystemProcessEntity,
+  SystemProcessEntityEvents,
+  SystemProgram,
+  SystemProgramEntity,
+  SystemProgramProcess,
+  SystemProgramProcessEvents,
+  SystemEndpointEntity,
+  SystemServerEntity,
+  SystemClientEntity,
+  ClientDescription,
+  SystemProcessEvents,
+  SystemProcessExit,
+  SystemProgramEvents,
+  SystemProgramUninstall,
+  ProgramDescription,
+  ServerDescription,
   Size,
   Subscribable,
   SubscribableEvents,

@@ -1,201 +1,26 @@
 import type {
-  Exit,
-  Layer,
-  Position,
   ServiceKey,
-  Size,
-  Subscribable,
-  SystemUploads,
+  System,
+  SystemProcess,
+  SystemProgram,
+  ProgramDescription,
   WritableAppearance
 } from "@phreshos/core"
 import type { ClientServiceHandler, ServerServiceHandler } from "./service.js"
 import Events from "./events.js"
 import {
-  type Client,
   exit,
   lifecycleEndpoint,
   process,
   program,
-  type Process,
   type ProcessRecord,
-  type Program,
   type ProgramRecord,
-  type Server
 } from "./domain.js"
 import { uploads } from "./uploads.js"
 import ServerAppearance from "./appearance.js"
 import wire from "./wire.js"
 import { prepareService } from "./service.js"
-import { systemStorage, type Storage } from "./storage.js"
-
-/** Resolved production description for a Program's Server. */
-type ServerDescriptionBase = Readonly<{
-  /** Absolute directory containing the production Server files. */
-  location: string
-
-  /** Whether newly created Processes start this Server by default. */
-  start?: boolean
-
-  /** Command used to install the Server's production dependencies. */
-  installCommand?: string
-
-}>
-
-export type ServerDescription = ServerDescriptionBase & (
-  | Readonly<{
-    /** Command used to start an isolated Server process. */
-    startCommand: string
-    entryFile?: never
-  }>
-  | Readonly<{
-    startCommand?: never
-    /** JavaScript module loaded as a worker owned by the System. */
-    entryFile: string
-  }>
-)
-
-/** Resolved production description for a Program's Client and initial Window. */
-export type ClientDescription = Readonly<{
-  /** Absolute directory containing the production Client files. */
-  location: string
-
-  /** Whether newly created Processes start this Client by default. */
-  start?: boolean
-
-  /** Default Window title. */
-  title?: string
-
-  /** Default Window size. */
-  size?: Size
-
-  /** Default Window position. */
-  position?: Position
-
-  /** Default Window layer. */
-  layer?: Layer
-
-  /** Whether the Window starts minimized. */
-  minimize?: boolean
-}>
-
-type Description = Readonly<{
-  /** Stable identity assigned to the Program. */
-  identity: string
-
-  /** Human-readable Program name. */
-  name?: string
-
-  /** Declared Program version. */
-  version?: string
-
-  /** Short human-readable Program description. */
-  description?: string
-
-  /** Absolute validated PNG source used to derive the Program's hosted icon sizes. */
-  icon?: string
-
-  /** Absolute Markdown file describing Program-specific operation to agents. */
-  agent?: string
-
-  /** Absolute directory used for the Program's persistent storage. */
-  storage: string
-}>
-
-/** Complete runtime description used to create a Program. */
-export type ProgramDescription = Description & (
-  | Readonly<{
-    /** Required Server description when no Client is described. */
-    server: ServerDescription
-
-    /** Optional Client description. */
-    client?: ClientDescription
-  }>
-  | Readonly<{
-    /** Optional Server description. */
-    server?: ServerDescription
-
-    /** Required Client description when no Server is described. */
-    client: ClientDescription
-  }>
-)
-
-/** An uninstall reported with the affected Program and removal scope. */
-export type SystemProgramUninstall = Readonly<{
-  /** Program that left the installed state. */
-  program: Program
-
-  /** Whether all installed resources, including storage, were removed. */
-  everythingRemoved: boolean
-}>
-
-/** A Process exit reported with the Process that ended. */
-export type SystemProcessExit = Exit & Readonly<{
-  /** Process that ended. */
-  process: Process
-}>
-
-/** Authoritative lifecycle events visible to the Server system. */
-export type SystemProgramEvents = {
-  /** A Program entered the runtime registry. */
-  create: Program
-
-  /** A Program left the runtime registry. */
-  forget: Program
-
-  /** A Program entered the installed state. */
-  install: Program
-
-  /** A Program left the installed state. */
-  uninstall: SystemProgramUninstall
-}
-
-/** Authoritative Process lifecycle events visible to the Server system. */
-export type SystemProcessEvents = {
-  /** One Process Endpoint entered a new live incarnation. */
-  endpointStart: Server | Client
-
-  /** One Process Endpoint incarnation ended. */
-  endpointStop: Server | Client
-
-  /** A Process entered the runtime set. */
-  create: Process
-
-  /** A Process left the runtime set. */
-  exit: SystemProcessExit
-}
-
-/** Authoritative Program registry available to a Server endpoint. */
-export interface SystemProgram extends Subscribable<SystemProgramEvents, never> {
-  list(onlyInstalled?: boolean): Promise<Program[]>
-  find(identity: string): Promise<Program | null>
-  create(source: ProgramDescription | string): Promise<Program>
-}
-
-/** Authoritative Process registry available to a Server endpoint. */
-export interface SystemProcess extends Subscribable<SystemProcessEvents, never> {
-  list(): Promise<Process[]>
-  find(identity: string): Promise<Process | null>
-}
-
-/** Authoritative system capabilities available to a Server endpoint. */
-export interface System {
-  /** Native operating-system home storage available to Server endpoints. */
-  readonly storage: Storage
-
-  /** Complete unresolved Appearance authority owned by the System. */
-  readonly appearance: WritableAppearance
-
-  readonly program: SystemProgram
-  readonly process: SystemProcess
-
-  /** Flat System-owned public uploads capability. */
-  readonly uploads: SystemUploads
-
-  /** Returns a stable handle for one exact Service identity. */
-  service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
-  service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
-
-}
+import { systemStorage } from "./storage.js"
 
 class ServerSystem {
   public readonly storage = systemStorage()
