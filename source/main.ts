@@ -13,7 +13,7 @@ export {
 } from "./system.js"
 
 export { current, type Current, type CurrentClient } from "./current.js"
-export { type Answerer, type Channel } from "./channel.js"
+export { type Answerer, type Channel, type ChannelCapture, type ChannelEvents, type ChannelMessage } from "./channel.js"
 export { type ProgramStartup } from "./startup.js"
 export { type Storage } from "./storage.js"
 export {
@@ -48,9 +48,6 @@ export type {
   AskObserver,
   Capture,
   Captures,
-  ChannelCapture,
-  ChannelEvents,
-  ChannelMessage,
   ClientTraffic,
   ClientDeclaration,
   Cleanup,

@@ -1,6 +1,8 @@
 import type {
   Channel as CoreChannel,
-  ChannelMessage,
+  ChannelCapture as CoreChannelCapture,
+  ChannelEvents as CoreChannelEvents,
+  ChannelMessage as CoreChannelMessage,
   Cleanup
 } from "@phreshos/core"
 import { endpoint, type Endpoint, type EndpointReference } from "./domain.js"
@@ -8,13 +10,22 @@ import Events from "./events.js"
 import wire from "./wire.js"
 import { disableCurrentService, enableCurrentService } from "./service.js"
 
+/** One value addressed to the current Server, with a server-visible sender. */
+export type ChannelMessage<Payload = unknown> = CoreChannelMessage<Payload, Endpoint | null>
+
 /** Handles one question addressed to the current Server. */
 export type Answerer<Payload = unknown, Result = undefined> = (
   message: ChannelMessage<Payload>
 ) => Result | Promise<Result>
 
+/** Applies the server-visible sender envelope to known Channel events. */
+export type ChannelEvents<Events extends object> = CoreChannelEvents<Events, Endpoint | null>
+
+/** Every event observable through the current Server's Channel. */
+export type ChannelCapture<Events extends object = {}> = CoreChannelCapture<Events, Endpoint | null>
+
 /** Events and questions explicitly accepted by the current Server. */
-export interface Channel<Events extends object = {}> extends CoreChannel<Events, Endpoint> {
+export interface Channel<Events extends object = {}> extends CoreChannel<Events, Endpoint | null> {
   /** Registers one answerer; omitting its return produces `undefined`. */
   answer<Payload = unknown, Result = undefined>(event: string, answerer: Answerer<Payload, Result>): Cleanup
 }
@@ -42,8 +53,8 @@ class ServerChannel extends Events {
 }
 
 function message(value: unknown): ChannelMessage {
-  const raw = value as { from?: EndpointReference, payload?: unknown }
-  return { from: endpoint(raw.from), payload: raw.payload }
+  const raw = value as { from?: EndpointReference | null, payload?: unknown }
+  return { from: raw.from ? endpoint(raw.from) : null, payload: raw.payload }
 }
 
 export const channel = new ServerChannel() as unknown as Channel

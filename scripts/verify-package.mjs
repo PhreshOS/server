@@ -131,6 +131,11 @@ const clientService = system.service({ program: "counter", endpoint: "client", n
 const counterStop = counter.channel.subscribe("change", value => void value)
 const counterAnswer: Promise<number> = counter.channel.ask<number>("value")
 const expose: Promise<void> = current.enableService("state")
+const stopAnswer = current.answer("outside", message => {
+  const sender: import("@phreshos/server").Endpoint | null = message.from
+  if (sender) void sender.process()
+  return sender ? "endpoint" : "outside"
+})
 const program = await current.program()
 const hasAgent: boolean = program.hasAgent
 const agent: Promise<string | null> = program.agent()
@@ -162,6 +167,7 @@ void clientService
 void counterStop
 void counterAnswer
 void expose
+void stopAnswer
 void hasAgent
 void agent
 void shared
