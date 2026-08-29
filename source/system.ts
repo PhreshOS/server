@@ -3,7 +3,7 @@ import type {
   System,
   SystemProcess,
   SystemProgram,
-  ProgramDescription,
+  ProgramDefinition,
   WritableAppearance
 } from "@phreshos/core"
 import type { ClientServiceHandler, ServerServiceHandler } from "./service.js"
@@ -29,7 +29,7 @@ class ServerSystem {
   public readonly process = new ServerSystemProcess() as unknown as SystemProcess
   public readonly uploads = uploads
 
-  public async forceCreateProgram(source: ProgramDescription | string) {
+  public async forceCreateProgram(source: ProgramDefinition | string) {
     const answer = await wire.request(["host-program-force-create", source]) as [ProgramRecord]
     return program(answer[0])
   }
@@ -60,7 +60,7 @@ class ServerSystemProgram extends Events {
     return answer[0] ? program(answer[0]) : null
   }
 
-  public async create(source: ProgramDescription | string) {
+  public async create(source: ProgramDefinition | string) {
     const answer = await wire.request(["host-program-create", source]) as [ProgramRecord]
     return program(answer[0])
   }
