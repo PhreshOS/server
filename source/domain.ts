@@ -128,9 +128,21 @@ export interface ProgramProcess extends Omit<CoreProgramProcess, "list" | "first
   /** Creates one Process of this Program. */
   create(launch?: Launch): Promise<Process>
 
+  /** Runs one Process for exactly as long as its lifecycle iterator remains open. */
+  run(launch?: Launch, options?: ProgramProcessRunOptions): AsyncGenerator<ProgramProcessRunEvent, void, void>
+
   /** Finds the named Process or atomically creates it with the same resolved launch. */
   findOrCreate(launch: Launch & Readonly<{ name: string }>): Promise<Process>
 }
+
+export type ProgramProcessRunEvent =
+  | Readonly<{ event: "started", process: Process }>
+  | (Readonly<{ event: "output" }> & ProgramCommandChunk)
+  | Readonly<{ event: "exited", process: Process, exit: Exit }>
+
+export type ProgramProcessRunOptions = Readonly<{
+  signal?: AbortSignal
+}>
 
 /** Server-visible Process handle. */
 export interface Process<Events extends object = {}> extends CoreProcess<Events> {
@@ -324,6 +336,12 @@ class ProgramProcessHandle {
     return process(answer[0])
   }
 
+  public async *run(launch: Launch = {}, options: ProgramProcessRunOptions = {}) {
+    for await (const value of wire.stream(["run", this.address, launch], undefined, options.signal)) {
+      yield processRunEvent(value)
+    }
+  }
+
   public async findOrCreate(launch: Launch & Readonly<{ name: string }>) {
     const answer = await wire.request(["program-process-find-or-create", this.address, launch]) as [ProcessRecord]
     return process(answer[0])
@@ -333,6 +351,32 @@ class ProgramProcessHandle {
     const answer = await wire.request(["program-process-exit-all", this.address]) as [string[]]
     return answer[0]
   }
+}
+
+function processRunEvent(value: unknown): ProgramProcessRunEvent {
+  const event = value as {
+    event?: unknown
+    process?: ProcessRecord
+    stream?: unknown
+    text?: unknown
+    exit?: { code?: unknown, signal?: unknown }
+  } | null
+
+  if (event?.event === "started" && event.process) {
+    return Object.freeze({ event: "started", process: process(event.process) })
+  }
+
+  if (event?.event === "output" && (event.stream === "stdout" || event.stream === "stderr") && typeof event.text === "string") {
+    return Object.freeze({ event: "output", stream: event.stream, text: event.text })
+  }
+
+  if (event?.event === "exited" && event.process) {
+    const code = typeof event.exit?.code === "number" ? event.exit.code : null
+    const signal = typeof event.exit?.signal === "string" ? event.exit.signal : null
+    return Object.freeze({ event: "exited", process: process(event.process), exit: exit(code, signal) })
+  }
+
+  throw new Error("The System returned an invalid Process run event")
 }
 
 /** Internal transport address for a Program handle created by this SDK. */

@@ -25,7 +25,9 @@ export {
   Program,
   Server,
   type Window,
-  type ProgramProcess
+  type ProgramProcess,
+  type ProgramProcessRunEvent,
+  type ProgramProcessRunOptions
 } from "./domain.js"
 
 export type {

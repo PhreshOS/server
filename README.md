@@ -136,12 +136,20 @@ A Program owns its scoped Process capability:
 const processes = await program.process.list()
 const process = await program.process.find("worker")
 const created = await program.process.create({ name: "worker" })
+for await (const event of program.process.run({ name: "temporary" }, { signal })) {
+  // started, output, exited
+}
 const shared = await program.process.findOrCreate({
   name: "shared-server",
   server: true,
   client: false
 })
 ```
+
+`run()` creates exactly one Process and yields its ordered `started`, `output`,
+and `exited` lifecycle. Aborting its signal, returning early, or losing the
+calling Server exits that Process; `create()` remains independent of the
+caller.
 
 `findOrCreate()` is atomic at the authoritative Core. Concurrent equivalent
 launches converge on one named Process; a different launch for that name
@@ -172,7 +180,7 @@ if (program.hasAgent) console.log(await program.agent())
 asset-hosting address. Omitting the size selects `medium`.
 
 Installed Programs may persist one ordinary Process launch for the next system
-startup. This capability exists only in the Server SDK:
+startup through the shared Program interface:
 
 ```ts
 await program.startup.enable({

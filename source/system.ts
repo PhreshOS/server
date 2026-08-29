@@ -29,6 +29,11 @@ class ServerSystem {
   public readonly process = new ServerSystemProcess() as unknown as SystemProcess
   public readonly uploads = uploads
 
+  public async forceCreateProgram(source: ProgramDescription | string) {
+    const answer = await wire.request(["host-program-force-create", source]) as [ProgramRecord]
+    return program(answer[0])
+  }
+
   public service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
   public service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
   public service(key: ServiceKey) { return prepareService(key) }
