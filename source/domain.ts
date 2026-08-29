@@ -34,8 +34,8 @@ import permission from "./permissions.js"
 import wire from "./wire.js"
 import {
   endpointService,
-  type ClientServiceHandler,
-  type ServerServiceHandler
+  type ClientService,
+  type ServerService
 } from "./service.js"
 
 export interface HandleAddress {
@@ -171,7 +171,7 @@ export interface Server<Events extends object = {}> extends CoreServer<Events> {
   process(): Promise<Process>
 
   /** Returns the Service currently exposed by this Server Endpoint. */
-  service<ServiceEvents extends object = {}>(): Promise<ServerServiceHandler<ServiceEvents> | null>
+  service<ServiceEvents extends object = {}>(): Promise<ServerService<ServiceEvents> | null>
 }
 
 /** Server-visible Client handle. */
@@ -183,7 +183,7 @@ export interface Client<Events extends object = {}> extends CoreClient<Events> {
   process(): Promise<Process>
 
   /** Returns the Service currently exposed by this Client Endpoint. */
-  service<ServiceEvents extends object = {}>(): Promise<ClientServiceHandler<ServiceEvents> | null>
+  service<ServiceEvents extends object = {}>(): Promise<ClientService<ServiceEvents> | null>
 }
 
 /** Server-visible Client-owned Window capability. */

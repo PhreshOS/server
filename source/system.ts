@@ -6,7 +6,7 @@ import type {
   ProgramDefinition,
   WritableAppearance
 } from "@phreshos/core"
-import type { ClientServiceHandler, ServerServiceHandler } from "./service.js"
+import type { ClientService, ServerService } from "./service.js"
 import Events from "./events.js"
 import {
   exit,
@@ -34,8 +34,8 @@ class ServerSystem {
     return program(answer[0])
   }
 
-  public service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<ServiceEvents>
-  public service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<ServiceEvents>
+  public service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerService<ServiceEvents>
+  public service<ServiceEvents extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientService<ServiceEvents>
   public service(key: ServiceKey) { return prepareService(key) }
 
 }

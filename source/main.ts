@@ -7,11 +7,11 @@ export { type Answerer, type Channel, type ChannelCapture, type ChannelEvents, t
 export { type ProgramStartup } from "./startup.js"
 export { type Storage } from "./storage.js"
 export {
-  ClientServiceHandler,
-  ServerServiceHandler
+  ClientService,
+  ServerService
 } from "./service.js"
 export {
-  ServiceHandler,
+  Service,
   type ClientServiceChannel,
   type ServerServiceChannel,
   type ServiceChannel,

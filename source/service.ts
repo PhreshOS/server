@@ -1,10 +1,10 @@
 import {
-  ClientServiceHandler as CoreClientServiceHandler,
-  ServerServiceHandler as CoreServerServiceHandler,
+  ClientService as CoreClientService,
+  ServerService as CoreServerService,
   isServiceKey,
   type ClientServiceChannel,
   type ServerServiceChannel,
-  type ServiceHandler,
+  type Service,
   type ServiceKey
 } from "@phreshos/core"
 import { randomUUID } from "node:crypto"
@@ -17,14 +17,14 @@ import wire from "./wire.js"
 const handles = new HandleRegistry()
 
 /** Server-SDK handle for a Service provided by a Server Endpoint. */
-export class ServerServiceHandler<Events extends object = {}>
-  extends CoreServerServiceHandler<Events> {
+export class ServerService<Events extends object = {}>
+  extends CoreServerService<Events> {
   protected constructor() { super() }
 }
 
 /** Server-SDK handle for a Service provided by a Client Endpoint. */
-export class ClientServiceHandler<Events extends object = {}>
-  extends CoreClientServiceHandler<Events> {
+export class ClientService<Events extends object = {}>
+  extends CoreClientService<Events> {
   protected constructor() { super() }
 }
 
@@ -68,7 +68,7 @@ class ClientChannelHandle extends Events {
   }
 }
 
-class ServerHandler<EventsMap extends object = {}> extends ServerServiceHandler<EventsMap> {
+class ServerHandler<EventsMap extends object = {}> extends ServerService<EventsMap> {
   public override readonly name: string
   public override readonly channel: ServerServiceChannel<EventsMap>
 
@@ -90,7 +90,7 @@ class ServerHandler<EventsMap extends object = {}> extends ServerServiceHandler<
 
 }
 
-class ClientHandler<EventsMap extends object = {}> extends ClientServiceHandler<EventsMap> {
+class ClientHandler<EventsMap extends object = {}> extends ClientService<EventsMap> {
   public override readonly name: string
   public override readonly channel: ClientServiceChannel<EventsMap>
 
@@ -112,10 +112,10 @@ class ClientHandler<EventsMap extends object = {}> extends ClientServiceHandler<
 
 }
 
-export function prepareService<EventsMap extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerServiceHandler<EventsMap>
-export function prepareService<EventsMap extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientServiceHandler<EventsMap>
-export function prepareService(key: ServiceKey): ServiceHandler
-export function prepareService(key: ServiceKey): ServiceHandler {
+export function prepareService<EventsMap extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerService<EventsMap>
+export function prepareService<EventsMap extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientService<EventsMap>
+export function prepareService(key: ServiceKey): Service
+export function prepareService(key: ServiceKey): Service {
   if (!isServiceKey(key)) throw new Error("A complete service key is required")
 
   const normalized = Object.freeze({ program: key.program, endpoint: key.endpoint, name: key.name })
@@ -125,7 +125,7 @@ export function prepareService(key: ServiceKey): ServiceHandler {
     return normalized.endpoint === "server"
       ? new ServerHandler(normalized as ServiceKey & { endpoint: "server" })
       : new ClientHandler(normalized as ServiceKey & { endpoint: "client" })
-  }) as unknown as ServiceHandler
+  }) as unknown as Service
 }
 
 export async function enableCurrentService(name: string) {
@@ -137,11 +137,11 @@ export async function disableCurrentService() {
 }
 
 export async function endpointService<EventsMap extends object = {}>(target: HandleAddress | null, endpoint: "server"):
-Promise<ServerServiceHandler<EventsMap> | null>
+Promise<ServerService<EventsMap> | null>
 export async function endpointService<EventsMap extends object = {}>(target: HandleAddress | null, endpoint: "client"):
-Promise<ClientServiceHandler<EventsMap> | null>
+Promise<ClientService<EventsMap> | null>
 export async function endpointService(target: HandleAddress | null, endpoint: "server" | "client"):
-Promise<ServiceHandler | null>
+Promise<Service | null>
 export async function endpointService(target: HandleAddress | null, endpoint: "server" | "client") {
   const answer = await wire.request(["endpoint-service", target, endpoint]) as [ServiceKey | null]
   return answer[0] ? prepareService(answer[0]) : null

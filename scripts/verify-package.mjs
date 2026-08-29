@@ -73,7 +73,7 @@ try {
     join(consumer, "runtime.mjs"),
     `import assert from "node:assert/strict"
 import * as core from "@phreshos/core"
-import { Client, Endpoint, Process, Program, Server, ServerServiceHandler, ServiceHandler, current, system } from "@phreshos/server"
+import { Client, ClientService, Endpoint, Process, Program, Server, ServerService, Service, current, system } from "@phreshos/server"
 
 assert.equal(Program, core.Program)
 assert.equal(Process, core.Process)
@@ -99,9 +99,13 @@ assert.equal(typeof system.process.list, "function")
 assert.equal(typeof system.service, "function")
 assert.equal("subscribe" in system, false)
 const service = system.service({ program: "counter", endpoint: "server", name: "state" })
+const clientService = system.service({ program: "counter", endpoint: "client", name: "state" })
 assert.equal(service, system.service({ program: "counter", endpoint: "server", name: "state" }))
-assert(service instanceof ServiceHandler)
-assert(service instanceof ServerServiceHandler)
+assert.equal(clientService, system.service({ program: "counter", endpoint: "client", name: "state" }))
+assert(service instanceof Service)
+assert(service instanceof ServerService)
+assert(clientService instanceof Service)
+assert(clientService instanceof ClientService)
 assert.equal("program" in service, false)
 assert.equal("endpoint" in service, false)
 assert.equal(typeof service.enabled, "function")
@@ -127,7 +131,7 @@ setTimeout(() => process.exit(0), 25)
 
   writeFileSync(
     join(consumer, "consumer.ts"),
-    `import { current, system, Client, Server, type Appearance, type ServerServiceHandler, type SystemUploads, type Upload } from "@phreshos/server"
+    `import { current, system, Client, Server, type Appearance, type ServerService, type SystemUploads, type Upload } from "@phreshos/server"
 
 type CounterEvents = { change: number }
 
@@ -138,7 +142,7 @@ const uploadText: Promise<string> = uploads.text("00000000-0000-0000-0000-000000
 const homeFile: Promise<string> = system.storage.text("example.txt")
 // @ts-expect-error file reads require at least one path segment
 system.storage.text()
-const counter: ServerServiceHandler<CounterEvents> = system.service<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
+const counter: ServerService<CounterEvents> = system.service<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
 const counterReady: Promise<void> = counter.waitReady(10_000)
 const clientService = system.service({ program: "counter", endpoint: "client", name: "window" })
 const counterStop = counter.channel.subscribe("change", value => void value)
