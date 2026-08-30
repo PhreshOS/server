@@ -223,12 +223,12 @@ class Wire {
     })
   }
 
-  public onAll(route: string, handler: Handler, subject: string | null = null): Cleanup {
+  public onAll(route: string, handler: Handler, subject: string | null = null, impossible?: Failure): Cleanup {
     const handlers = this.every.get(route) ?? new Set()
     handlers.add(handler)
     this.every.set(route, handlers)
 
-    const subscription = this.register("publish", route, null, subject)
+    const subscription = this.register("publish", route, null, subject, impossible)
 
     return once(() => {
       handlers.delete(handler)
@@ -299,7 +299,7 @@ class Wire {
   /** Follow one exact service lifecycle or application event route. */
   public followService(
     key: ServiceKey,
-    scope: "lifecycle" | "channel",
+    scope: "lifecycle" | "events",
     event: string | null,
     handler: Handler
   ): Cleanup {

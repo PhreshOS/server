@@ -5,10 +5,14 @@ import {
   Program as CoreProgram,
   Server as CoreServer,
   type AnswerCapture,
+  type AnswerSubscriber,
   type AskCapture,
+  type AskSubscriber,
   type Cleanup,
   type ClientDeclaration,
   type EndpointDeclaration,
+  type EndpointLifecycle,
+  type EventOptions,
   type Exit,
   type Launch,
   type LaunchClient,
@@ -25,7 +29,7 @@ import {
   type WindowState
 } from "@phreshos/core"
 import { randomUUID } from "node:crypto"
-import Events from "./events.js"
+import Events, { stream } from "./events.js"
 import Deadline from "./deadline.js"
 import HandleRegistry from "./handle-registry.js"
 import { area, sql, store, type Storage } from "./storage.js"
@@ -443,41 +447,59 @@ export class TrafficHandle extends Events {
       (event, listener, impossible) => wire.observe(target, kind, "publish", event, value => {
         listener(trafficMessage(value))
       }, impossible),
-      observer => wire.observe(target, kind, "publish", null, (event, value) => {
-        if (typeof event === "string") observer(event, trafficMessage(value))
-      })
+      (listener, impossible) => wire.observe(target, kind, "publish", null, (event, value) => {
+        if (typeof event === "string") listener(event, trafficMessage(value))
+      }, impossible)
     )
   }
 
-  public observeAsks(observer: (capture: AskCapture) => unknown): Cleanup {
+  public subscribeAsks(subscriber: AskSubscriber): Cleanup {
+    return this.followAsks(subscriber)
+  }
+
+  public asks(options?: EventOptions) {
+    return stream<AskCapture>((subscriber, impossible) => this.followAsks(subscriber, impossible), options)
+  }
+
+  private followAsks(subscriber: AskSubscriber, impossible?: (error: Error) => void): Cleanup {
     return wire.observe(this.target, this.kind, "ask", null, (event, questionId, message) => {
       if (typeof event !== "string" || typeof questionId !== "string") return
-      observer({ event, questionId, message: trafficMessage(message) as AskCapture["message"] })
-    })
+      subscriber({ event, questionId, message: trafficMessage(message) as AskCapture["message"] })
+    }, impossible)
   }
 }
 
 export class ServerTrafficHandle extends TrafficHandle {
-  public observeAnswers(observer: (capture: AnswerCapture) => unknown): Cleanup {
+  public subscribeAnswers(subscriber: AnswerSubscriber): Cleanup {
+    return this.followAnswers(subscriber)
+  }
+
+  public answers(options?: EventOptions) {
+    return stream<AnswerCapture>((subscriber, impossible) => this.followAnswers(subscriber, impossible), options)
+  }
+
+  private followAnswers(subscriber: AnswerSubscriber, impossible?: (error: Error) => void): Cleanup {
     return wire.observe(this.target, "server", "answer", null, (event, questionId, message) => {
       if (typeof event !== "string" || typeof questionId !== "string") return
 
       const raw = message as { to?: EndpointReference, outcome?: Outcome }
-      observer({
+      subscriber({
         event,
         questionId,
         message: { to: endpoint(raw.to), outcome: raw.outcome as Outcome }
       })
-    })
+    }, impossible)
   }
 }
 
 class ServerHandle extends ServerBase {
   public readonly traffic: ServerTrafficHandle
+  public readonly lifecycle: EndpointLifecycle
 
   public constructor(private readonly owner: ProcessHandle) {
     super()
     this.traffic = new ServerTrafficHandle(owner.address, "server")
+    this.lifecycle = endpointLifecycle(() => Promise.resolve(owner.address), "server") as unknown as EndpointLifecycle
     bindEvents(this, endpointEvents(owner.address, "server"))
   }
 
@@ -526,11 +548,13 @@ class ServerHandle extends ServerBase {
 
 class ClientHandle extends ClientBase {
   public readonly traffic: TrafficHandle
+  public readonly lifecycle: EndpointLifecycle
   public readonly window: Window
 
   public constructor(private readonly owner: ProcessHandle) {
     super()
     this.traffic = new TrafficHandle(owner.address, "client")
+    this.lifecycle = endpointLifecycle(() => Promise.resolve(owner.address), "client") as unknown as EndpointLifecycle
     this.window = window(async () => owner.address)
     bindEvents(this, endpointEvents(owner.address, "client"))
   }
@@ -591,11 +615,11 @@ function deferredScoped(route: string, target: WindowTarget, convert: (event: st
         if (message) listener(convert(event, message))
       }, subject, impossible), impossible)
     },
-    observer => deferred(target, subject => wire.onAll(route, (event, ...values) => {
+    (listener, impossible) => deferred(target, subject => wire.onAll(route, (event, ...values) => {
       if (typeof event !== "string" || !windowEvent(event)) return
       const message = unscoped(subject, values)
-      if (message) observer(event, convert(event, message))
-    }, subject))
+      if (message) listener(event, convert(event, message))
+    }, subject, impossible), impossible)
   ] as const satisfies ConstructorParameters<typeof Events>
 }
 
@@ -627,11 +651,11 @@ export function scoped(route: string, subject: string | null, convert: (event: s
       const message = unscoped(subject, values)
       if (message) listener(convert(event, message))
     }, subject, impossible),
-    observer => wire.onAll(route, (event, ...values) => {
+    (listener, impossible) => wire.onAll(route, (event, ...values) => {
       if (typeof event !== "string") return
       const message = unscoped(subject, values)
-      if (message) observer(event, convert(event, message))
-    }, subject)
+      if (message) listener(event, convert(event, message))
+    }, subject, impossible)
   )
 }
 
@@ -639,10 +663,37 @@ export function scoped(route: string, subject: string | null, convert: (event: s
 export function endpointEvents(target: HandleAddress | null, half: "server" | "client") {
   return new Events(
     (event, listener, impossible) => wire.follow(target, half, event, listener, impossible),
-    observer => wire.follow(target, half, null, (event, payload) => {
-      if (typeof event === "string") observer(event, payload)
-    })
+    (listener, impossible) => wire.follow(target, half, null, (event, payload) => {
+      if (typeof event === "string") listener(event, payload)
+    }, impossible)
   )
+}
+
+/** Start and stop transitions belonging directly to one permanent Endpoint. */
+export function endpointLifecycle(target: WindowTarget, half: "server" | "client") {
+  return new Events(
+    (event, listener, impossible) => deferred(target, subject => wire.on(
+      "process-host",
+      endpointLifecycleEvent(event),
+      (...values) => {
+        const message = unscoped(subject, values)
+        if (message?.[1] === half) listener(undefined)
+      },
+      subject,
+      impossible
+    ), impossible),
+    (listener, impossible) => deferred(target, subject => wire.onAll("process-host", (event, ...values) => {
+      if (event !== "endpointStart" && event !== "endpointStop") return
+      const message = unscoped(subject, values)
+      if (message?.[1] === half) listener(event === "endpointStart" ? "start" : "stop", undefined)
+    }, subject, impossible), impossible)
+  )
+}
+
+function endpointLifecycleEvent(event: string) {
+  if (event === "start") return "endpointStart"
+  if (event === "stop") return "endpointStop"
+  return event
 }
 
 function unscoped(subject: string | null, values: unknown[]) {
@@ -692,8 +743,7 @@ export function bindEvents(target: object, events: Events) {
   Object.assign(target, {
     subscribe: events.subscribe.bind(events),
     waitFor: events.waitFor.bind(events),
-    events: events.events.bind(events),
-    observe: events.observe.bind(events)
+    events: events.events.bind(events)
   })
 }
 

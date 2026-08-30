@@ -53,8 +53,8 @@ announce its readiness outward, but identity, Theme, Process, readiness,
 lifecycle, and application values enter only in response to an explicit request
 or a live registration made by Program code.
 
-`Context` combines navigation into the executing Server's Process with its
-Channel and answer registry. The paired Client is explicitly named
+`Context` combines communication, navigation into the executing Server's
+Process, and its answer registry. The paired Client is explicitly named
 as `context.client`; its publishing, existence, lifecycle, and Window operations
 never masquerade as properties of `context`. `context.stop()` stops the
 executing Server, while complete Process exit remains available only through
@@ -87,7 +87,7 @@ them. These are the same domain classes used by the Client SDK, so
 `ClientTraffic`, is a type-only capability owned by Client and has no
 independent `instanceof` identity.
 
-The executing Server's Channel is composed directly into `context`. It receives
+The executing Server's communication belongs directly to `context`. It receives
 addressed events, emits destinationless events through `publish()`, and
 registers answerers for questions arriving at this Server. An answerer that
 omits its return value successfully answers with `undefined`. Answer

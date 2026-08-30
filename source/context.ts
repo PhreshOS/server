@@ -1,9 +1,17 @@
-import type { LaunchClient } from "@phreshos/core"
-import { channel, type Answerer, type Channel } from "./channel.js"
+import type {
+  Context as CoreContext,
+  ContextCapture as CoreContextCapture,
+  ContextEvents as CoreContextEvents,
+  ContextMessage as CoreContextMessage,
+  EndpointLifecycle,
+  LaunchClient
+} from "@phreshos/core"
 import {
   Client,
   TrafficHandle,
   bindEvents,
+  endpoint,
+  endpointLifecycle,
   endpointEvents,
   process,
   program,
@@ -12,16 +20,34 @@ import {
   type ProcessRecord,
   type Program,
   type ProgramRecord,
-  type Server
+  type Server,
+  type Endpoint,
+  type EndpointReference
 } from "./domain.js"
+import Events from "./events.js"
 import wire from "./wire.js"
-import { endpointService } from "./service.js"
+import { disableCurrentService, enableCurrentService, endpointService } from "./service.js"
 
 /** The executing Process's canonical Client handle. */
 export type ContextClient<Events extends object = {}> = Client<Events>
 
-/** Server runtime context: its inbound Channel, owner hierarchy, and paired Client. */
-export interface Context<Events extends object = {}> extends Channel<Events>, Pick<Server, "service"> {
+/** One value addressed to the current Server, with a server-visible sender. */
+export type ContextMessage<Payload = unknown> = CoreContextMessage<Payload, Endpoint | null>
+
+/** Applies the server-visible sender envelope to known Context events. */
+export type ContextEvents<Events extends object> = CoreContextEvents<Events, Endpoint | null>
+
+/** Every event observable through the current Server Context. */
+export type ContextCapture<Events extends object = {}> = CoreContextCapture<Events, Endpoint | null>
+
+/** Handles one question addressed to the current Server. */
+export type Answerer<Payload = unknown, Result = undefined> = (
+  message: ContextMessage<Payload>
+) => Result | Promise<Result>
+
+/** Server runtime context: inbound communication, owner hierarchy, and paired Client. */
+export interface Context<Events extends object = {}>
+  extends CoreContext<Events, Endpoint | null>, Pick<Server, "service"> {
   /** The same Client handle exposed by the executing Process. */
   readonly client: ContextClient
 
@@ -42,17 +68,14 @@ export interface Context<Events extends object = {}> extends Channel<Events>, Pi
 
   /** Stops the executing Server; rejects when it is the final live Endpoint. */
   stop(): Promise<void>
-
 }
 
 const ClientBase = Client as unknown as new () => object
 
 class ContextClientHandle extends ClientBase {
   public readonly traffic = new TrafficHandle(null, "client") as unknown as Client["traffic"]
-  public readonly window = window(async () => {
-    const identity = await wire.identity()
-    return { identity: identity.process, reference: identity.reference }
-  })
+  public readonly lifecycle = endpointLifecycle(currentAddress, "client") as unknown as EndpointLifecycle
+  public readonly window = window(currentAddress)
 
   public constructor(private readonly owner: () => Promise<Process>) {
     super()
@@ -73,7 +96,6 @@ class ContextClientHandle extends ClientBase {
 
   public async stop() { await wire.request(["stop-endpoint", undefined, "client"]) }
   public service<ServiceEvents extends object = {}>() { return endpointService<ServiceEvents>(null, "client") }
-
 }
 
 let ownerPromise: Promise<Process> | null = null
@@ -98,15 +120,20 @@ function owner() {
 
 contextClient = new ContextClientHandle(owner) as unknown as ContextClient
 
-class ServerContext {
+class ServerContext extends Events {
   public readonly client = contextClient
 
   public constructor() {
-    bindChannel(this, channel)
+    super(
+      (event, listener, impossible) => wire.on("end-end", event, value => listener(contextMessage(value)), null, impossible),
+      (listener, impossible) => wire.onAll("end-end", (event, value) => {
+        if (typeof event === "string") listener(event, contextMessage(value))
+      }, null, impossible)
+    )
   }
 
   public answer<Payload = unknown, Result = undefined>(event: string, answerer: Answerer<Payload, Result>) {
-    return channel.answer(event, answerer)
+    return wire.answer("end-end", event, value => answerer(contextMessage(value) as ContextMessage<Payload>))
   }
 
   public process() { return owner() }
@@ -128,18 +155,19 @@ class ServerContext {
 
   public async stop() { await wire.request(["stop-current"]) }
   public service<ServiceEvents extends object = {}>() { return endpointService<ServiceEvents>(null, "server") }
+  public publish(event: string, payload: unknown = undefined) { wire.send("end-host", "emit", event, payload) }
+  public async enableService(name: string) { await enableCurrentService(name) }
+  public async disableService() { await disableCurrentService() }
 }
 
-function bindChannel(target: object, source: Channel) {
-  Object.assign(target, {
-    publish: source.publish.bind(source),
-    subscribe: source.subscribe.bind(source),
-    waitFor: source.waitFor.bind(source),
-    events: source.events.bind(source),
-    observe: source.observe.bind(source),
-    enableService: source.enableService.bind(source),
-    disableService: source.disableService.bind(source)
-  })
+async function currentAddress() {
+  const identity = await wire.identity()
+  return { identity: identity.process, reference: identity.reference }
+}
+
+function contextMessage(value: unknown): ContextMessage {
+  const raw = value as { from?: EndpointReference | null, payload?: unknown }
+  return { from: raw.from ? endpoint(raw.from) : null, payload: raw.payload }
 }
 
 /** Inbound events, owner hierarchy, and paired Client for this Server runtime. */

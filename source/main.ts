@@ -2,8 +2,15 @@ export {
   system
 } from "./system.js"
 
-export { context, type Context, type ContextClient } from "./context.js"
-export { type Answerer, type Channel, type ChannelCapture, type ChannelEvents, type ChannelMessage } from "./channel.js"
+export {
+  context,
+  type Answerer,
+  type Context,
+  type ContextCapture,
+  type ContextClient,
+  type ContextEvents,
+  type ContextMessage
+} from "./context.js"
 export { type ProgramStartup } from "./startup.js"
 export { type Storage } from "./storage.js"
 export {
@@ -12,10 +19,8 @@ export {
 } from "./service.js"
 export {
   Service,
-  type ClientServiceChannel,
-  type ServerServiceChannel,
-  type ServiceChannel,
   type ServiceKey,
+  type ServiceLifecycle,
   type ServiceLifecycleEvents
 } from "@phreshos/core"
 export {
@@ -33,23 +38,25 @@ export {
 export type {
   AnswerCapture,
   AnswerMessage,
-  AnswerObserver,
+  AnswerSubscriber,
   Askable,
   AskCapture,
   AskMessage,
-  AskObserver,
+  AskSubscriber,
   Capture,
   Captures,
+  CaptureSubscriber,
   ClientTraffic,
   ClientDeclaration,
   Cleanup,
   DirectoryStat,
   EndpointDeclaration,
+  EndpointLifecycle,
+  EndpointLifecycleEvents,
   EndpointTraffic,
   EntryStat,
   EventMessage,
   EventName,
-  EventObserver,
   EventOptions,
   EventSubscriber,
   Exit,

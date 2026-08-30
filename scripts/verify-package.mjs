@@ -87,6 +87,7 @@ assert.equal(typeof context.client.window, "object")
 assert.equal("local" in context.client.window, false)
 assert.equal(typeof context.enableService, "function")
 assert.equal(typeof context.disableService, "function")
+assert.equal("channel" in context, false)
 assert.equal("enableService" in context.client, false)
 assert.equal("disableService" in context.client, false)
 assert.equal(typeof system.appearance.snapshot, "function")
@@ -112,6 +113,9 @@ assert.equal("program" in service, false)
 assert.equal("endpoint" in service, false)
 assert.equal(typeof service.enabled, "function")
 assert.equal(typeof service.waitReady, "function")
+assert.equal(typeof service.subscribe, "function")
+assert.equal(typeof service.lifecycle.subscribe, "function")
+assert.equal("channel" in service, false)
 `
   )
   execFileSync(process.execPath, [join(consumer, "runtime.mjs")], {
@@ -149,8 +153,9 @@ system.storage.text()
 const counter: ServerService<CounterEvents> = system.service<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
 const counterReady: Promise<void> = counter.waitReady(10_000)
 const clientService = system.service({ program: "counter", endpoint: "client", name: "window" })
-const counterStop = counter.channel.subscribe("change", value => void value)
-const counterAnswer: Promise<number> = counter.channel.ask<number>("value")
+const counterStop = counter.subscribe("change", value => void value)
+const counterLifecycleStop = counter.lifecycle.subscribe("enable", () => undefined)
+const counterAnswer: Promise<number> = counter.ask<number>("value")
 const expose: Promise<void> = context.enableService("state")
 const stopAnswer = context.answer("outside", message => {
   const sender: import("@phreshos/server").Endpoint | null = message.from
@@ -188,6 +193,7 @@ void counter
 void counterReady
 void clientService
 void counterStop
+void counterLifecycleStop
 void counterAnswer
 void expose
 void stopAnswer
