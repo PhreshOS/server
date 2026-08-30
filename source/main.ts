@@ -2,7 +2,7 @@ export {
   system
 } from "./system.js"
 
-export { current, type Current, type CurrentClient } from "./current.js"
+export { context, type Context, type ContextClient } from "./context.js"
 export { type Answerer, type Channel, type ChannelCapture, type ChannelEvents, type ChannelMessage } from "./channel.js"
 export { type ProgramStartup } from "./startup.js"
 export { type Storage } from "./storage.js"

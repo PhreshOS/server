@@ -17,13 +17,13 @@ import {
 import wire from "./wire.js"
 import { endpointService } from "./service.js"
 
-/** The current Process's canonical Client handle. */
-export type CurrentClient<Events extends object = {}> = Client<Events>
+/** The executing Process's canonical Client handle. */
+export type ContextClient<Events extends object = {}> = Client<Events>
 
-/** Current Server context: its inbound Channel, owner hierarchy, and paired Client. */
-export interface Current<Events extends object = {}> extends Channel<Events>, Pick<Server, "service"> {
-  /** The same Client handle exposed by the current Process. */
-  readonly client: CurrentClient
+/** Server runtime context: its inbound Channel, owner hierarchy, and paired Client. */
+export interface Context<Events extends object = {}> extends Channel<Events>, Pick<Server, "service"> {
+  /** The same Client handle exposed by the executing Process. */
+  readonly client: ContextClient
 
   /** Registers one answerer; omitting its return produces `undefined`. */
   answer<Payload = unknown, Result = undefined>(event: string, answerer: Answerer<Payload, Result>): () => void
@@ -40,14 +40,14 @@ export interface Current<Events extends object = {}> extends Channel<Events>, Pi
   /** Returns one immutable option supplied when this Process was created. */
   option(name: string): Promise<string | undefined>
 
-  /** Stops the current Server; rejects when it is the final live Endpoint. */
+  /** Stops the executing Server; rejects when it is the final live Endpoint. */
   stop(): Promise<void>
 
 }
 
 const ClientBase = Client as unknown as new () => object
 
-class CurrentClientHandle extends ClientBase {
+class ContextClientHandle extends ClientBase {
   public readonly traffic = new TrafficHandle(null, "client") as unknown as Client["traffic"]
   public readonly window = window(async () => {
     const identity = await wire.identity()
@@ -77,12 +77,12 @@ class CurrentClientHandle extends ClientBase {
 }
 
 let ownerPromise: Promise<Process> | null = null
-let currentClient!: CurrentClient
+let contextClient!: ContextClient
 
 function owner() {
   if (!ownerPromise) {
     const resolving = wire.request(["current-process"]).then(answer => {
-      return process((answer as [ProcessRecord])[0], { client: currentClient })
+      return process((answer as [ProcessRecord])[0], { client: contextClient })
     })
 
     const retained = resolving.catch(error => {
@@ -96,10 +96,10 @@ function owner() {
   return ownerPromise
 }
 
-currentClient = new CurrentClientHandle(owner) as unknown as CurrentClient
+contextClient = new ContextClientHandle(owner) as unknown as ContextClient
 
-class ServerCurrent {
-  public readonly client = currentClient
+class ServerContext {
+  public readonly client = contextClient
 
   public constructor() {
     bindChannel(this, channel)
@@ -142,5 +142,5 @@ function bindChannel(target: object, source: Channel) {
   })
 }
 
-/** Inbound events, owner hierarchy, and paired Client for the current Server. */
-export const current = new ServerCurrent() as unknown as Current
+/** Inbound events, owner hierarchy, and paired Client for this Server runtime. */
+export const context = new ServerContext() as unknown as Context

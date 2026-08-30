@@ -73,20 +73,22 @@ try {
     join(consumer, "runtime.mjs"),
     `import assert from "node:assert/strict"
 import * as core from "@phreshos/core"
-import { Client, ClientService, Endpoint, Process, Program, Server, ServerService, Service, current, system } from "@phreshos/server"
+import * as sdk from "@phreshos/server"
+import { Client, ClientService, Endpoint, Process, Program, Server, ServerService, Service, context, system } from "@phreshos/server"
 
 assert.equal(Program, core.Program)
 assert.equal(Process, core.Process)
 assert.equal(Endpoint, core.Endpoint)
 assert.equal(Server, core.Server)
 assert.equal(Client, core.Client)
-assert.equal(typeof current.process, "function")
-assert.equal(typeof current.client.window, "object")
-assert.equal("local" in current.client.window, false)
-assert.equal(typeof current.enableService, "function")
-assert.equal(typeof current.disableService, "function")
-assert.equal("enableService" in current.client, false)
-assert.equal("disableService" in current.client, false)
+assert.equal("current" in sdk, false)
+assert.equal(typeof context.process, "function")
+assert.equal(typeof context.client.window, "object")
+assert.equal("local" in context.client.window, false)
+assert.equal(typeof context.enableService, "function")
+assert.equal(typeof context.disableService, "function")
+assert.equal("enableService" in context.client, false)
+assert.equal("disableService" in context.client, false)
 assert.equal(typeof system.appearance.snapshot, "function")
 assert.equal(typeof system.uploads.write, "function")
 assert.equal(typeof system.uploads.stream, "function")
@@ -131,7 +133,9 @@ setTimeout(() => process.exit(0), 25)
 
   writeFileSync(
     join(consumer, "consumer.ts"),
-    `import { current, system, Client, Server, type Appearance, type ServerService, type SystemUploads, type Upload } from "@phreshos/server"
+    `import { context, system, Client, Server, type Appearance, type ServerService, type SystemUploads, type Upload } from "@phreshos/server"
+// @ts-expect-error the runtime object is named context
+import { current } from "@phreshos/server"
 
 type CounterEvents = { change: number }
 
@@ -147,13 +151,13 @@ const counterReady: Promise<void> = counter.waitReady(10_000)
 const clientService = system.service({ program: "counter", endpoint: "client", name: "window" })
 const counterStop = counter.channel.subscribe("change", value => void value)
 const counterAnswer: Promise<number> = counter.channel.ask<number>("value")
-const expose: Promise<void> = current.enableService("state")
-const stopAnswer = current.answer("outside", message => {
+const expose: Promise<void> = context.enableService("state")
+const stopAnswer = context.answer("outside", message => {
   const sender: import("@phreshos/server").Endpoint | null = message.from
   if (sender) void sender.process()
   return sender ? "endpoint" : "outside"
 })
-const program = await current.program()
+const program = await context.program()
 const hasAgent: boolean = program.hasAgent
 const agent: Promise<string | null> = program.agent()
 const shared: Promise<import("@phreshos/server").Process> = program.process.findOrCreate({
@@ -165,7 +169,7 @@ const stop = system.process.subscribe("endpointStop", endpoint => {
   if (endpoint instanceof Server) void endpoint.process()
   if (endpoint instanceof Client) void endpoint.window.size()
 })
-const client: Client = current.client
+const client: Client = context.client
 const start: Promise<void> = client.start({ title: "Prepared title" })
 const geometry: Promise<void> = client.window.setGeometry({
   position: { x: "0/1", y: "0/1" },

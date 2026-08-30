@@ -12,9 +12,9 @@ const sdk = pathToFileURL(resolve("dist/main.js")).href
 
 await writeFile(entry, `
 import { parentPort } from "node:worker_threads"
-import { current } from ${JSON.stringify(sdk)}
+import { context } from ${JSON.stringify(sdk)}
 
-const value = await current.option("worker-test")
+const value = await context.option("worker-test")
 parentPort.postMessage({ verified: value })
 `)
 

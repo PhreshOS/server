@@ -53,13 +53,13 @@ announce its readiness outward, but identity, Theme, Process, readiness,
 lifecycle, and application values enter only in response to an explicit request
 or a live registration made by Program code.
 
-`Current` combines navigation into the executing Server's Process with its
+`Context` combines navigation into the executing Server's Process with its
 Channel and answer registry. The paired Client is explicitly named
-as `current.client`; its publishing, existence, lifecycle, and Window operations
-never masquerade as properties of `current`. `current.stop()` stops the
+as `context.client`; its publishing, existence, lifecycle, and Window operations
+never masquerade as properties of `context`. `context.stop()` stops the
 executing Server, while complete Process exit remains available only through
-`current.process()`. It is the canonical Process-owned handle, so
-`current.client === (await current.process()).client`.
+`context.process()`. It is the canonical Process-owned handle, so
+`context.client === (await context.process()).client`.
 Endpoint `process()` navigation is asynchronous; contextual ownership is
 requested only when navigation needs it and then retained by the SDK.
 
@@ -77,7 +77,7 @@ resulting desktop material.
 The package provides two contextual runtime entry points:
 
 ```ts
-import { system, current } from "@phreshos/server"
+import { system, context } from "@phreshos/server"
 ```
 
 It also re-exports the shared Core runtime classes—`Program`, `Process`,
@@ -87,12 +87,12 @@ them. These are the same domain classes used by the Client SDK, so
 `ClientTraffic`, is a type-only capability owned by Client and has no
 independent `instanceof` identity.
 
-The current Server's Channel is composed directly into `current`. It receives
+The executing Server's Channel is composed directly into `context`. It receives
 addressed events, emits destinationless events through `publish()`, and
 registers answerers for questions arriving at this Server. An answerer that
 omits its return value successfully answers with `undefined`. Answer
 registration returns its sole cleanup function. Directed publishing to the
-paired Client belongs to `current.client`.
+paired Client belongs to `context.client`.
 
 An Endpoint handle is also a selective source: `endpoint.subscribe()` follows
 destinationless events emitted by that Endpoint. Its `traffic` property remains
