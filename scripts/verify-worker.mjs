@@ -14,8 +14,11 @@ await writeFile(entry, `
 import { parentPort } from "node:worker_threads"
 import { context } from ${JSON.stringify(sdk)}
 
-const value = await context.option("worker-test")
-parentPort.postMessage({ verified: value })
+const [value, name] = await Promise.all([
+  context.option("worker-test"),
+  context.name()
+])
+parentPort.postMessage({ verified: value, name })
 `)
 
 try {
@@ -28,9 +31,9 @@ try {
     worker.on("error", reject)
     worker.on("message", message => {
       if (!(message instanceof Uint8Array)) {
-        if (message?.verified === "worker-value") {
+        if (message?.verified === "worker-value" && message.name === "worker-main") {
           clearTimeout(timer)
-          resolve(message.verified)
+          resolve(message)
         }
         return
       }
@@ -40,15 +43,39 @@ try {
       if (route === "boundary" && values[0] === "ready") ready = true
 
       if (route === "end-host" && values[0] === "wait" && typeof values[1] === "string") {
-        worker.postMessage(serialize(["end-host", "answer", values[1], { success: true, result: ["worker-value"] }]))
+        const result = values[2] === "current-process" ? [workerProcess()] : ["worker-value"]
+
+        worker.postMessage(serialize(["end-host", "answer", values[1], { success: true, result }]))
       }
     })
   })
 
-  assert.equal(await verified, "worker-value")
+  assert.deepEqual(await verified, { verified: "worker-value", name: "worker-main" })
   assert.equal(ready, true)
 
   await worker.terminate()
 } finally {
   await rm(directory, { recursive: true, force: true })
+}
+
+function workerProcess() {
+  return {
+    reference: "worker-process-reference",
+    identity: "worker-process-identity",
+    name: "worker-main",
+    program: {
+      reference: "worker-program-reference",
+      identity: "worker-program",
+      name: "Worker Program",
+      version: null,
+      description: null,
+      hasAgent: false,
+      server: { start: true },
+      client: null
+    },
+    options: {},
+    startedAt: new Date(0),
+    server: {},
+    client: null
+  }
 }

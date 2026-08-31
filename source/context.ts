@@ -57,6 +57,9 @@ export interface Context<Events extends object = {}>
   /** Returns the Process represented by this Server. */
   process(): Promise<Process>
 
+  /** Returns the executing Process's Program-local name, or `null` when unnamed. */
+  name(): Promise<string | null>
+
   /** Returns the parent Process, or `null` when this Process has none. */
   parent(): Promise<Process | null>
 
@@ -137,6 +140,8 @@ class ServerContext extends Events {
   }
 
   public process() { return owner() }
+
+  public async name() { return (await owner()).name }
 
   public async parent() {
     const answer = await wire.request(["parent"]) as [ProcessRecord | null]

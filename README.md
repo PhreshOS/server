@@ -62,6 +62,8 @@ executing Server, while complete Process exit remains available only through
 `context.client === (await context.process()).client`.
 Endpoint `process()` navigation is asynchronous; contextual ownership is
 requested only when navigation needs it and then retained by the SDK.
+`context.name()` returns that retained Process's Program-local name, or `null`
+when its launch was unnamed.
 
 All domain handles are canonical within this Server runtime's JavaScript realm.
 Lookup, navigation, event payloads, and message metadata reuse the same weakly

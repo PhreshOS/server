@@ -83,6 +83,7 @@ assert.equal(Server, core.Server)
 assert.equal(Client, core.Client)
 assert.equal("current" in sdk, false)
 assert.equal(typeof context.process, "function")
+assert.equal(typeof context.name, "function")
 assert.equal(typeof context.client.window, "object")
 assert.equal("local" in context.client.window, false)
 assert.equal(typeof context.enableService, "function")
@@ -157,6 +158,7 @@ const counterStop = counter.subscribe("change", value => void value)
 const counterLifecycleStop = counter.lifecycle.subscribe("enable", () => undefined)
 const counterAnswer: Promise<number> = counter.ask<number>("value")
 const expose: Promise<void> = context.enableService("state")
+const processName: Promise<string | null> = context.name()
 const stopAnswer = context.answer("outside", message => {
   const sender: import("@phreshos/server").Endpoint | null = message.from
   if (sender) void sender.process()
@@ -193,6 +195,7 @@ void counterStop
 void counterLifecycleStop
 void counterAnswer
 void expose
+void processName
 void stopAnswer
 void hasAgent
 void agent
