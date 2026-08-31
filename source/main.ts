@@ -20,8 +20,6 @@ export {
 export {
   Service,
   type ServiceKey,
-  type ServiceLifecycle,
-  type ServiceLifecycleEvents
 } from "@phreshos/core"
 export {
   Client,
@@ -46,6 +44,7 @@ export type {
   Capture,
   Captures,
   CaptureSubscriber,
+  ClientLaunch,
   ClientTraffic,
   ClientDeclaration,
   Cleanup,
@@ -62,7 +61,7 @@ export type {
   Exit,
   FileStat,
   Launch,
-  LaunchClient,
+  ServerLaunch,
   Layer,
   LogKind,
   LogRecord,

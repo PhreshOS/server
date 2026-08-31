@@ -4,7 +4,7 @@ import type {
   ContextEvents as CoreContextEvents,
   ContextMessage as CoreContextMessage,
   EndpointLifecycle,
-  LaunchClient
+  ClientLaunch
 } from "@phreshos/core"
 import {
   Client,
@@ -20,13 +20,11 @@ import {
   type ProcessRecord,
   type Program,
   type ProgramRecord,
-  type Server,
   type Endpoint,
   type EndpointReference
 } from "./domain.js"
 import Events from "./events.js"
 import wire from "./wire.js"
-import { disableCurrentService, enableCurrentService, endpointService } from "./service.js"
 
 /** The executing Process's canonical Client handle. */
 export type ContextClient<Events extends object = {}> = Client<Events>
@@ -47,7 +45,7 @@ export type Answerer<Payload = unknown, Result = undefined> = (
 
 /** Server runtime context: inbound communication, owner hierarchy, and paired Client. */
 export interface Context<Events extends object = {}>
-  extends CoreContext<Events, Endpoint | null>, Pick<Server, "service"> {
+  extends CoreContext<Events, Endpoint | null> {
   /** The same Client handle exposed by the executing Process. */
   readonly client: ContextClient
 
@@ -93,12 +91,12 @@ class ContextClientHandle extends ClientBase {
     return answer[0]
   }
 
-  public async start(overrides: LaunchClient = {}) {
-    await wire.request(["start-endpoint", undefined, "client", overrides])
+  public async start(launch: ClientLaunch = {}) {
+    await wire.request(["start-endpoint", undefined, "client", launch])
   }
 
   public async stop() { await wire.request(["stop-endpoint", undefined, "client"]) }
-  public service<ServiceEvents extends object = {}>() { return endpointService<ServiceEvents>(null, "client") }
+  public async isService() { return (await wire.request(["is-service", "client"]) as [boolean])[0] }
 }
 
 let ownerPromise: Promise<Process> | null = null
@@ -159,10 +157,8 @@ class ServerContext extends Events {
   }
 
   public async stop() { await wire.request(["stop-current"]) }
-  public service<ServiceEvents extends object = {}>() { return endpointService<ServiceEvents>(null, "server") }
+  public async isService() { return (await wire.request(["is-service"]) as [boolean])[0] }
   public publish(event: string, payload: unknown = undefined) { wire.send("end-host", "emit", event, payload) }
-  public async enableService(name: string) { await enableCurrentService(name) }
-  public async disableService() { await disableCurrentService() }
 }
 
 async function currentAddress() {

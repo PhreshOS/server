@@ -86,11 +86,9 @@ assert.equal(typeof context.process, "function")
 assert.equal(typeof context.name, "function")
 assert.equal(typeof context.client.window, "object")
 assert.equal("local" in context.client.window, false)
-assert.equal(typeof context.enableService, "function")
-assert.equal(typeof context.disableService, "function")
+assert.equal(typeof context.isService, "function")
 assert.equal("channel" in context, false)
-assert.equal("enableService" in context.client, false)
-assert.equal("disableService" in context.client, false)
+assert.equal(typeof context.client.isService, "function")
 assert.equal(typeof system.appearance.snapshot, "function")
 assert.equal(typeof system.uploads.write, "function")
 assert.equal(typeof system.uploads.stream, "function")
@@ -102,18 +100,23 @@ assert.equal(typeof system.program.list, "function")
 assert.equal(typeof system.process.list, "function")
 assert.equal(typeof system.service, "function")
 assert.equal("subscribe" in system, false)
-const service = system.service({ program: "counter", endpoint: "server", name: "state" })
-const clientService = system.service({ program: "counter", endpoint: "client", name: "state" })
-assert.equal(service, system.service({ program: "counter", endpoint: "server", name: "state" }))
-assert.equal(clientService, system.service({ program: "counter", endpoint: "client", name: "state" }))
+const service = system.service({ program: "counter", process: "main", endpoint: "server" })
+const clientService = system.service({ program: "counter", process: "main", endpoint: "client" })
+const exactService = system.service({ process: "1f4b222c-25d7-4ba8-85e5-d5e59cfe0928", endpoint: "server" })
+assert.equal(service, system.service({ program: "counter", process: "main", endpoint: "server" }))
+assert.equal(clientService, system.service({ program: "counter", process: "main", endpoint: "client" }))
+assert.equal(exactService, system.service({ process: "1f4b222c-25d7-4ba8-85e5-d5e59cfe0928", endpoint: "server" }))
+assert.throws(() => system.service({ process: "main", endpoint: "server" }), /complete service key/)
 assert(service instanceof Service)
 assert(service instanceof ServerService)
 assert(clientService instanceof Service)
 assert(clientService instanceof ClientService)
 assert.equal("program" in service, false)
 assert.equal("endpoint" in service, false)
-assert.equal(typeof service.enabled, "function")
+assert.equal(typeof service.exists, "function")
 assert.equal(typeof service.waitReady, "function")
+assert.equal(typeof clientService.waitReady, "undefined")
+assert.equal(typeof clientService.publish, "function")
 assert.equal(typeof service.subscribe, "function")
 assert.equal(typeof service.lifecycle.subscribe, "function")
 assert.equal("channel" in service, false)
@@ -127,7 +130,7 @@ assert.equal("channel" in service, false)
   writeFileSync(
     join(consumer, "startup.mjs"),
     `import { system } from "@phreshos/server"
-system.service({ program: "counter", endpoint: "server", name: "state" })
+system.service({ program: "counter", process: "main", endpoint: "server" })
 setTimeout(() => process.exit(0), 25)
 `
   )
@@ -151,13 +154,14 @@ const uploadText: Promise<string> = uploads.text("00000000-0000-0000-0000-000000
 const homeFile: Promise<string> = system.storage.text("example.txt")
 // @ts-expect-error file reads require at least one path segment
 system.storage.text()
-const counter: ServerService<CounterEvents> = system.service<CounterEvents>({ program: "counter", endpoint: "server", name: "state" })
+const counter: ServerService<CounterEvents> = system.service<CounterEvents>({ program: "counter", process: "main", endpoint: "server" })
 const counterReady: Promise<void> = counter.waitReady(10_000)
-const clientService = system.service({ program: "counter", endpoint: "client", name: "window" })
+const clientService = system.service({ program: "counter", process: "main", endpoint: "client" })
+const exactService: ServerService = system.service({ process: "1f4b222c-25d7-4ba8-85e5-d5e59cfe0928", endpoint: "server" })
 const counterStop = counter.subscribe("change", value => void value)
-const counterLifecycleStop = counter.lifecycle.subscribe("enable", () => undefined)
+const counterLifecycleStop = counter.lifecycle.subscribe("start", () => undefined)
 const counterAnswer: Promise<number> = counter.ask<number>("value")
-const expose: Promise<void> = context.enableService("state")
+const serviceRole: Promise<boolean> = context.isService()
 const processName: Promise<string | null> = context.name()
 const stopAnswer = context.answer("outside", message => {
   const sender: import("@phreshos/server").Endpoint | null = message.from
@@ -169,12 +173,13 @@ const hasAgent: boolean = program.hasAgent
 const agent: Promise<string | null> = program.agent()
 const shared: Promise<import("@phreshos/server").Process> = program.process.findOrCreate({
   name: "shared-server",
-  server: true,
+  server: { service: true },
   client: false
 })
 const stop = (await shared).client.lifecycle.subscribe("stop", () => undefined)
 const client: Client = context.client
 const start: Promise<void> = client.start({ title: "Prepared title" })
+const serverStart: Promise<void> = (await context.process()).server.start({ service: true })
 const geometry: Promise<void> = client.window.setGeometry({
   position: { x: "0/1", y: "0/1" },
   size: { width: "1/2", height: "1/2" }
@@ -189,12 +194,14 @@ void upload
 void uploadText
 void homeFile
 void counter
+void exactService
+void serverStart
 void counterReady
 void clientService
 void counterStop
 void counterLifecycleStop
 void counterAnswer
-void expose
+void serviceRole
 void processName
 void stopAnswer
 void hasAgent

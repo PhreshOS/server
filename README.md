@@ -158,11 +158,21 @@ launches converge on one named Process; a different launch for that name
 rejects instead of reconfiguring the existing Process.
 
 `system.service(key)` creates the exact opaque service handle. The
-handler exposes its authored `name`, `enabled()`, `waitReady()`, lifecycle
-subscriptions, and channel; it does not expose its Program or Endpoint as
-separate fields. Services are runtime bindings explicitly enabled by their
-providing Endpoints; creating the providing Process remains the Program's
-responsibility.
+handle exposes communication, `exists()`, and Endpoint lifecycle observation;
+a Server Service also exposes `waitReady()` and `ask()`. A Service cannot
+start or stop its Endpoint. A Program declaration supplies the default service
+role, while each initial or later Endpoint launch may override it for that
+incarnation. Creating the providing Process remains the Program's responsibility.
+
+Program-local Process names require `program` in the Service key. An exact
+globally unique Process identity can be addressed without it:
+
+```ts
+const exact = system.service({
+  process: process.identity,
+  endpoint: "server"
+})
+```
 
 Readiness accepts an optional timeout directly:
 

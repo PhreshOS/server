@@ -15,7 +15,8 @@ import {
   type EventOptions,
   type Exit,
   type Launch,
-  type LaunchClient,
+  type ClientLaunch,
+  type ServerLaunch,
   type Outcome,
   type Position,
   type ProgramIconSize,
@@ -36,11 +37,6 @@ import { area, sql, store, type Storage } from "./storage.js"
 import startup, { type ProgramStartup } from "./startup.js"
 import permission from "./permissions.js"
 import wire from "./wire.js"
-import {
-  endpointService,
-  type ClientService,
-  type ServerService
-} from "./service.js"
 
 export interface HandleAddress {
   identity: string
@@ -50,6 +46,7 @@ export interface HandleAddress {
 /** Client-safe Program data transported by the authoritative system. */
 export interface EndpointDeclarationRecord {
   start: boolean
+  service: boolean
 }
 
 export interface ClientDeclarationRecord extends EndpointDeclarationRecord {
@@ -80,9 +77,11 @@ export interface ProcessRecord {
   program: ProgramRecord
   options: Record<string, string>
   startedAt: string | Date
-  server: Record<string, never> | null
-  client: Record<string, never> | null
+  server: EndpointRecord | null
+  client: EndpointRecord | null
 }
+
+export interface EndpointRecord { service: boolean }
 
 export interface EndpointReference {
   kind: "server" | "client"
@@ -173,9 +172,6 @@ export interface Endpoint<Events extends object = {}> extends CoreEndpoint<Event
 export interface Server<Events extends object = {}> extends CoreServer<Events> {
   /** Returns the Process that owns this Server. */
   process(): Promise<Process>
-
-  /** Returns the Service currently exposed by this Server Endpoint. */
-  service<ServiceEvents extends object = {}>(): Promise<ServerService<ServiceEvents> | null>
 }
 
 /** Server-visible Client handle. */
@@ -185,9 +181,6 @@ export interface Client<Events extends object = {}> extends CoreClient<Events> {
 
   /** Returns the Process that owns this Client. */
   process(): Promise<Process>
-
-  /** Returns the Service currently exposed by this Client Endpoint. */
-  service<ServiceEvents extends object = {}>(): Promise<ClientService<ServiceEvents> | null>
 }
 
 /** Server-visible Client-owned Window capability. */
@@ -297,7 +290,8 @@ function programCommandChunk(value: unknown): ProgramCommandChunk {
 
 function declaration(record: EndpointDeclarationRecord): EndpointDeclaration {
   return Object.freeze({
-    start: record.start
+    start: record.start,
+    service: record.service
   })
 }
 
@@ -514,9 +508,9 @@ class ServerHandle extends ServerBase {
     return answer[0]
   }
 
-  public async start() { await wire.request(["start-endpoint", this.owner.address, "server"]) }
+  public async start(launch: ServerLaunch = {}) { await wire.request(["start-endpoint", this.owner.address, "server", launch]) }
   public async stop() { await wire.request(["stop-endpoint", this.owner.address, "server"]) }
-  public service<ServiceEvents extends object = {}>() { return endpointService<ServiceEvents>(this.owner.address, "server") }
+  public async isService() { return (await wire.request(["is-service", "server", this.owner.address]) as [boolean])[0] }
 
   public async waitReady(timeout?: number) {
     await wire.request(["wait-ready", this.owner.address], timeout)
@@ -567,12 +561,12 @@ class ClientHandle extends ClientBase {
     return answer[0]
   }
 
-  public async start(overrides: LaunchClient = {}) {
-    await wire.request(["start-endpoint", this.owner.address, "client", overrides])
+  public async start(launch: ClientLaunch = {}) {
+    await wire.request(["start-endpoint", this.owner.address, "client", launch])
   }
 
   public async stop() { await wire.request(["stop-endpoint", this.owner.address, "client"]) }
-  public service<ServiceEvents extends object = {}>() { return endpointService<ServiceEvents>(this.owner.address, "client") }
+  public async isService() { return (await wire.request(["is-service", "client", this.owner.address]) as [boolean])[0] }
 
 }
 

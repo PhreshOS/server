@@ -70,12 +70,12 @@ function workerProcess() {
       version: null,
       description: null,
       hasAgent: false,
-      server: { start: true },
+      server: { start: true, service: false },
       client: null
     },
     options: {},
     startedAt: new Date(0),
-    server: {},
+    server: { service: false },
     client: null
   }
 }
