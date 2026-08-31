@@ -1,5 +1,8 @@
 export {
-  system
+  system,
+  type ServerSystem,
+  type ServerSystemProcess,
+  type ServerSystemProgram
 } from "./system.js"
 
 export {

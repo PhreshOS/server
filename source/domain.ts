@@ -22,8 +22,13 @@ import {
   type ProgramIconSize,
   type ProgramCommandChunk,
   type ProgramPermission,
-  type ProgramProcess as CoreProgramProcess,
   type Size,
+  type SystemClientEntity,
+  type SystemEndpointEntity,
+  type SystemProcessEntity,
+  type SystemProgramEntity,
+  type SystemProgramProcess,
+  type SystemServerEntity,
   type TrafficMessage,
   type Window as CoreWindow,
   type WindowGeometry,
@@ -91,7 +96,7 @@ export interface EndpointReference {
 export type WindowRecord = WindowState
 
 /** Server-visible Program handle and privileged Program operations. */
-export interface Program extends Omit<CoreProgram, "process"> {
+export interface Program extends Omit<SystemProgramEntity, "process"> {
   /** Persistent filesystem data shared by every Process of this Program. */
   readonly data: Storage
 
@@ -115,7 +120,7 @@ export interface Program extends Omit<CoreProgram, "process"> {
 }
 
 /** Server-visible Process operations scoped to one Program. */
-export interface ProgramProcess extends Omit<CoreProgramProcess, "list" | "first" | "last" | "find" | "create" | "findOrCreate"> {
+export interface ProgramProcess extends Omit<SystemProgramProcess, "list" | "first" | "last" | "find" | "create" | "run" | "findOrCreate"> {
   /** Returns every live Process of this Program. */
   list(): Promise<Process[]>
 
@@ -148,7 +153,7 @@ export type ProgramProcessRunOptions = Readonly<{
 }>
 
 /** Server-visible Process handle. */
-export interface Process extends CoreProcess {
+export interface Process extends Omit<SystemProcessEntity, "server" | "client" | "program" | "parent"> {
   /** Permanent handle to this Process's Server. */
   readonly server: Server
 
@@ -163,19 +168,19 @@ export interface Process extends CoreProcess {
 }
 
 /** Server-visible common Endpoint handle. */
-export interface Endpoint<Events extends object = {}> extends CoreEndpoint<Events> {
+export interface Endpoint<Events extends object = {}> extends Omit<SystemEndpointEntity<Events>, "process"> {
   /** Returns the Process that owns this Endpoint. */
   process(): Promise<Process>
 }
 
 /** Server-visible Server handle. */
-export interface Server<Events extends object = {}> extends CoreServer<Events> {
+export interface Server<Events extends object = {}> extends Omit<SystemServerEntity<Events>, "process"> {
   /** Returns the Process that owns this Server. */
   process(): Promise<Process>
 }
 
 /** Server-visible Client handle. */
-export interface Client<Events extends object = {}> extends CoreClient<Events> {
+export interface Client<Events extends object = {}> extends Omit<SystemClientEntity<Events>, "process"> {
   /** Presentation capability permanently owned by this Client handle. */
   readonly window: Window
 

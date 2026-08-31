@@ -180,6 +180,11 @@ const stop = (await shared).client.lifecycle.subscribe("stop", () => undefined)
 const client: Client = context.client
 const start: Promise<void> = client.start({ title: "Prepared title" })
 const serverStart: Promise<void> = (await context.process()).server.start({ service: true })
+const systemPrograms: Promise<import("@phreshos/server").Program[]> = system.program.list()
+const systemProgram: Promise<import("@phreshos/server").Program | null> = system.program.find("counter")
+const systemProcesses: Promise<import("@phreshos/server").Process[]> = system.process.list()
+const systemProcess: Promise<import("@phreshos/server").Process | null> = system.process.find("process-identity")
+const forcedProgram: Promise<import("@phreshos/server").Program> = system.forceCreateProgram("./phresh.config.ts")
 const geometry: Promise<void> = client.window.setGeometry({
   position: { x: "0/1", y: "0/1" },
   size: { width: "1/2", height: "1/2" }
