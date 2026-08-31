@@ -10,7 +10,6 @@ import type { ClientService, ServerService } from "./service.js"
 import Events from "./events.js"
 import {
   exit,
-  lifecycleEndpoint,
   process,
   program,
   type ProcessRecord,
@@ -88,8 +87,6 @@ class ServerSystemProcess extends Events {
 }
 
 function systemProcessEvent(event: string, values: unknown[]): unknown {
-  if (event === "endpointStart" || event === "endpointStop") return lifecycleEndpoint(values[1], values[2])
-
   if (event === "create") {
     return process(values[1] as ProcessRecord)
   }
@@ -107,7 +104,7 @@ function systemProgramEvent(event: string, values: unknown[]): unknown {
   }
 
   if (event === "uninstall") {
-    return { program: program(values[1] as ProgramRecord), everythingRemoved: values[2] === true }
+    return { program: program(values[1] as ProgramRecord), everything: values[2] === true }
   }
 
   return values[0]

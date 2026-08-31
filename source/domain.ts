@@ -92,7 +92,7 @@ export interface EndpointReference {
 export type WindowRecord = WindowState
 
 /** Server-visible Program handle and privileged Program operations. */
-export interface Program<Events extends object = {}> extends Omit<CoreProgram<Events>, "process"> {
+export interface Program extends Omit<CoreProgram, "process"> {
   /** Persistent filesystem data shared by every Process of this Program. */
   readonly data: Storage
 
@@ -149,7 +149,7 @@ export type ProgramProcessRunOptions = Readonly<{
 }>
 
 /** Server-visible Process handle. */
-export interface Process<Events extends object = {}> extends CoreProcess<Events> {
+export interface Process extends CoreProcess {
   /** Permanent handle to this Process's Server. */
   readonly server: Server
 
@@ -702,28 +702,19 @@ function unscoped(subject: string | null, values: unknown[]) {
 }
 
 function programProcessEvent(event: string, values: unknown[]): unknown {
-  if (event === "endpointStart" || event === "endpointStop") return lifecycleEndpoint(values[0], values[1])
   if (event === "create") return process(values[0] as ProcessRecord)
   if (event === "exit") return { process: process(values[0] as ProcessRecord), ...exit(values[1], values[2]) }
   return undefined
 }
 
 function programEvent(event: string, values: unknown[]): unknown {
-  if (event === "uninstall") return { everythingRemoved: values[0] === true }
+  if (event === "uninstall") return values[0] === true
   return undefined
 }
 
 function processEvent(event: string, values: unknown[]): unknown {
-  if (event === "endpointStart" || event === "endpointStop") return lifecycleEndpoint(values[0], values[1])
   if (event === "exit") return exit(values[0], values[1])
   return undefined
-}
-
-export function lifecycleEndpoint(record: unknown, kind: unknown) {
-  const owner = process(record as ProcessRecord)
-  if (kind === "server") return owner.server
-  if (kind === "client") return owner.client
-  throw new Error("The system returned an invalid Endpoint lifecycle event")
 }
 
 export function exit(code: unknown, signal: unknown): Exit {

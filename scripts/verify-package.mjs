@@ -170,10 +170,7 @@ const shared: Promise<import("@phreshos/server").Process> = program.process.find
   server: true,
   client: false
 })
-const stop = system.process.subscribe("endpointStop", endpoint => {
-  if (endpoint instanceof Server) void endpoint.process()
-  if (endpoint instanceof Client) void endpoint.window.size()
-})
+const stop = (await shared).client.lifecycle.subscribe("stop", () => undefined)
 const client: Client = context.client
 const start: Promise<void> = client.start({ title: "Prepared title" })
 const geometry: Promise<void> = client.window.setGeometry({
