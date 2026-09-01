@@ -27,7 +27,7 @@ import Events from "./events.js"
 import wire from "./wire.js"
 
 /** The executing Process's canonical Client handle. */
-export type ContextClient<Events extends object = {}> = Client<Events>
+export type ContextClient<Events extends object = {}, Fallback = never> = Client<Events, Fallback>
 
 /** One value addressed to the current Server, with a server-visible sender. */
 export type ContextMessage<Payload = unknown> = CoreContextMessage<Payload, Endpoint | null>
