@@ -1,6 +1,6 @@
 {
   "name": "@phreshos/server",
-  "version": "0.1.35",
+  "version": "0.1.36",
   "description": "The SDK used by a Program's server endpoint.",
   "type": "module",
   "main": "dist/main.js",
@@ -42,8 +42,9 @@
     "check": "tsc --noEmit && tsc -p tsconfig.test.json",
     "build": "node --run clean && tsc --noEmit false --outDir dist --rootDir source",
     "verify:package": "node scripts/verify-package.mjs",
+    "verify:process": "node scripts/verify-process.mjs",
     "verify:worker": "node scripts/verify-worker.mjs",
-    "verify": "node --run check && node --run build && node --run verify:worker && node --run verify:package",
+    "verify": "node --run check && node --run build && node --run verify:worker && node --run verify:process && node --run verify:package",
     "prepack": "node --run build"
   },
   "peerDependencies": {

@@ -415,7 +415,7 @@ class ServerHandle extends ServerBase {
   public constructor(private readonly owner: ProcessHandle) {
     super()
     this.traffic = new ServerTrafficHandle(owner.address, "server")
-    this.lifecycle = endpointLifecycle(() => Promise.resolve(owner.address), "server") as unknown as EndpointLifecycle
+    this.lifecycle = endpointLifecycle(owner.address, "server") as unknown as EndpointLifecycle
     bindEvents(this, endpointEvents(owner.address, "server"))
   }
 
@@ -470,7 +470,7 @@ class ClientHandle extends ClientBase {
   public constructor(private readonly owner: ProcessHandle) {
     super()
     this.traffic = new TrafficHandle(owner.address, "client")
-    this.lifecycle = endpointLifecycle(() => Promise.resolve(owner.address), "client") as unknown as EndpointLifecycle
+    this.lifecycle = endpointLifecycle(owner.address, "client") as unknown as EndpointLifecycle
     this.window = window(async () => owner.address)
     bindEvents(this, endpointEvents(owner.address, "client"))
   }
@@ -519,6 +519,8 @@ class WindowHandle extends Events {
 }
 
 type WindowTarget = () => Promise<HandleAddress>
+
+type LifecycleTarget = HandleAddress | WindowTarget
 
 function deferredScoped(route: string, target: WindowTarget, convert: (event: string, values: unknown[]) => unknown) {
   return [
@@ -587,9 +589,9 @@ export function endpointEvents(target: HandleAddress | null, half: "server" | "c
 }
 
 /** Start and stop transitions belonging directly to one permanent Endpoint. */
-export function endpointLifecycle(target: WindowTarget, half: "server" | "client") {
+export function endpointLifecycle(target: LifecycleTarget, half: "server" | "client") {
   return new Events(
-    (event, listener, impossible) => deferred(target, subject => wire.on(
+    (event, listener, impossible) => resolved(target, subject => wire.on(
       "process-host",
       endpointLifecycleEvent(event),
       (...values) => {
@@ -599,12 +601,16 @@ export function endpointLifecycle(target: WindowTarget, half: "server" | "client
       subject,
       impossible
     ), impossible),
-    (listener, impossible) => deferred(target, subject => wire.onAll("process-host", (event, ...values) => {
+    (listener, impossible) => resolved(target, subject => wire.onAll("process-host", (event, ...values) => {
       if (event !== "endpointStart" && event !== "endpointStop") return
       const message = unscoped(subject, values)
       if (message?.[1] === half) listener(event === "endpointStart" ? "start" : "stop", undefined)
     }, subject, impossible), impossible)
   )
+}
+
+function resolved(target: LifecycleTarget, register: (subject: string) => Cleanup, impossible?: (error: Error) => void) {
+  return typeof target === "function" ? deferred(target, register, impossible) : register(target.reference)
 }
 
 function endpointLifecycleEvent(event: string) {
