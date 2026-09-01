@@ -21,11 +21,12 @@ import {
   type Position,
   type ProgramIconSize,
   type ProgramCommandChunk,
-  type ProgramPermission,
   type Size,
   type SystemClientEntity,
   type SystemEndpointEntity,
   type SystemProcessEntity,
+  type SystemProcessRunEvent,
+  type SystemProcessRunOptions,
   type SystemProgramEntity,
   type SystemProgramProcess,
   type SystemServerEntity,
@@ -39,7 +40,7 @@ import Events, { stream } from "./events.js"
 import Deadline from "./deadline.js"
 import HandleRegistry from "./handle-registry.js"
 import { area, sql, store, type Storage } from "./storage.js"
-import startup, { type ProgramStartup } from "./startup.js"
+import startup from "./startup.js"
 import permission from "./permissions.js"
 import wire from "./wire.js"
 
@@ -95,98 +96,14 @@ export interface EndpointReference {
 
 export type WindowRecord = WindowState
 
-/** Server-visible Program handle and privileged Program operations. */
-export interface Program extends Omit<SystemProgramEntity, "process"> {
-  /** Persistent filesystem data shared by every Process of this Program. */
-  readonly data: Storage
-
-  /** Disposable filesystem data shared by every Process of this Program. */
-  readonly cache: Storage
-
-  /** Persistent Process launch used when the system starts. */
-  readonly startup: ProgramStartup
-
-  /** Persistent permission decisions owned by this Program. */
-  readonly permission: ProgramPermission
-
-  /** Operations and lifecycle observation for this Program's Processes. */
-  readonly process: ProgramProcess
-
-  /** Installs this Program while yielding its command output in order. */
-  install(): AsyncGenerator<ProgramCommandChunk, void, void>
-
-  /** Creates a new runtime Program with the supplied stable identity. */
-  fork(identity: string): Promise<Program>
-}
-
-/** Server-visible Process operations scoped to one Program. */
-export interface ProgramProcess extends Omit<SystemProgramProcess, "list" | "first" | "last" | "find" | "create" | "run" | "findOrCreate"> {
-  /** Returns every live Process of this Program. */
-  list(): Promise<Process[]>
-
-  /** Returns the earliest-started live Process, or `null` when none exist. */
-  first(): Promise<Process | null>
-
-  /** Returns the latest-started live Process, or `null` when none exist. */
-  last(): Promise<Process | null>
-
-  /** Finds a live Process by runtime identity or Program-local name. */
-  find(identityOrName: string): Promise<Process | null>
-
-  /** Creates one Process of this Program. */
-  create(launch?: Launch): Promise<Process>
-
-  /** Runs one Process for exactly as long as its lifecycle iterator remains open. */
-  run(launch?: Launch, options?: ProgramProcessRunOptions): AsyncGenerator<ProgramProcessRunEvent, void, void>
-
-  /** Finds the named Process or atomically creates it with the same resolved launch. */
-  findOrCreate(launch: Launch & Readonly<{ name: string }>): Promise<Process>
-}
-
-export type ProgramProcessRunEvent =
-  | Readonly<{ event: "started", process: Process }>
-  | (Readonly<{ event: "output" }> & ProgramCommandChunk)
-  | Readonly<{ event: "exited", process: Process, exit: Exit }>
-
-export type ProgramProcessRunOptions = Readonly<{
-  signal?: AbortSignal
-}>
-
-/** Server-visible Process handle. */
-export interface Process extends Omit<SystemProcessEntity, "server" | "client" | "program" | "parent"> {
-  /** Permanent handle to this Process's Server. */
-  readonly server: Server
-
-  /** Permanent handle to this Process's Client. */
-  readonly client: Client
-
-  /** Returns the Program that owns this Process. */
-  program(): Program
-
-  /** Returns the parent Process, or `null` when this Process has none. */
-  parent(): Promise<Process | null>
-}
-
-/** Server-visible common Endpoint handle. */
-export interface Endpoint<Events extends object = {}, Fallback = unknown> extends Omit<SystemEndpointEntity<Events, Fallback>, "process"> {
-  /** Returns the Process that owns this Endpoint. */
-  process(): Promise<Process>
-}
-
-/** Server-visible Server handle. */
-export interface Server<Events extends object = {}, Fallback = unknown> extends Omit<SystemServerEntity<Events, Fallback>, "process"> {
-  /** Returns the Process that owns this Server. */
-  process(): Promise<Process>
-}
-
-/** Server-visible Client handle. */
-export interface Client<Events extends object = {}, Fallback = unknown> extends Omit<SystemClientEntity<Events, Fallback>, "process"> {
-  /** Presentation capability permanently owned by this Client handle. */
-  readonly window: Window
-
-  /** Returns the Process that owns this Client. */
-  process(): Promise<Process>
-}
+export type Program = SystemProgramEntity
+export type ProgramProcess = SystemProgramProcess
+export type ProgramProcessRunEvent = SystemProcessRunEvent
+export type ProgramProcessRunOptions = SystemProcessRunOptions
+export type Process = SystemProcessEntity
+export type Endpoint<Events extends object = {}, Fallback = unknown> = SystemEndpointEntity<Events, Fallback>
+export type Server<Events extends object = {}, Fallback = unknown> = SystemServerEntity<Events, Fallback>
+export type Client<Events extends object = {}, Fallback = unknown> = SystemClientEntity<Events, Fallback>
 
 /** Server-visible Client-owned Window capability. */
 export type Window = CoreWindow

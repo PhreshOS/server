@@ -1,4 +1,4 @@
-import type { EntryStat, ProgramSql, ProgramStore, Storage as CoreStorage } from "@phreshos/core"
+import type { EntryStat, ProgramSql, ProgramStore, SystemStorage } from "@phreshos/core"
 import { randomUUID } from "node:crypto"
 import {
   createReadStream,
@@ -18,10 +18,7 @@ import type { ReadableStream as NodeReadableStream } from "node:stream/web"
 import wire from "./wire.js"
 import type { HandleAddress } from "./domain.js"
 
-export interface Storage extends CoreStorage {
-  path(): Promise<string>
-  resolve(...path: string[]): Promise<string>
-}
+export type Storage = SystemStorage
 
 /** Server-local implementation of one Program-owned filesystem area. */
 export function area(program: HandleAddress, which: "data" | "cache"): Storage {

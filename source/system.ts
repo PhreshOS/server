@@ -12,9 +12,7 @@ import {
   exit,
   process,
   program,
-  type Process,
   type ProcessRecord,
-  type Program,
   type ProgramRecord,
 } from "./domain.js"
 import { uploads } from "./uploads.js"
@@ -23,33 +21,11 @@ import wire from "./wire.js"
 import { prepareService } from "./service.js"
 import { systemStorage } from "./storage.js"
 
-export interface ServerSystemProgram extends Omit<CoreSystemProgram, "list" | "find" | "create"> {
-  list(onlyInstalled?: boolean): Promise<Program[]>
-  find(identity: string): Promise<Program | null>
-  create(source: ProgramDefinition | string): Promise<Program>
-}
-
-export interface ServerSystemProcess extends Omit<CoreSystemProcess, "list" | "find"> {
-  list(): Promise<Process[]>
-  find(identity: string): Promise<Process | null>
-}
-
-/** Authoritative System contract refined with this SDK's Server-visible handles. */
-export interface ServerSystem extends Omit<CoreSystem, "program" | "process" | "forceCreateProgram" | "service"> {
-  readonly program: ServerSystemProgram
-  readonly process: ServerSystemProcess
-
-  forceCreateProgram(source: ProgramDefinition | string): Promise<Program>
-
-  service<Events extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "server" }): ServerService<Events, Fallback>
-  service<Events extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "client" }): ClientService<Events, Fallback>
-}
-
-class SystemHandle implements ServerSystem {
+class SystemHandle implements CoreSystem {
   public readonly storage = systemStorage()
   public readonly appearance = new ServerAppearance() as unknown as WritableAppearance
-  public readonly program = new SystemProgramHandle() as unknown as ServerSystemProgram
-  public readonly process = new SystemProcessHandle() as unknown as ServerSystemProcess
+  public readonly program = new SystemProgramHandle() as unknown as CoreSystemProgram
+  public readonly process = new SystemProcessHandle() as unknown as CoreSystemProcess
   public readonly uploads = uploads
 
   public async forceCreateProgram(source: ProgramDefinition | string) {
@@ -135,4 +111,4 @@ function systemProgramEvent(event: string, values: unknown[]): unknown {
 }
 
 /** Authoritative system capabilities for the currently executing Server. */
-export const system: ServerSystem = new SystemHandle()
+export const system: CoreSystem = new SystemHandle()

@@ -1,9 +1,4 @@
-export {
-  system,
-  type ServerSystem,
-  type ServerSystemProcess,
-  type ServerSystemProgram
-} from "./system.js"
+export { system } from "./system.js"
 
 export {
   context,
@@ -14,8 +9,6 @@ export {
   type ContextEvents,
   type ContextMessage
 } from "./context.js"
-export { type ProgramStartup } from "./startup.js"
-export { type Storage } from "./storage.js"
 export {
   ClientService,
   ServerService
@@ -90,6 +83,8 @@ export type {
   SystemProgram,
   SystemProgramEntity,
   SystemProgramProcess,
+  SystemProgramStartup,
+  SystemStorage,
   SystemEndpointEntity,
   SystemServerEntity,
   SystemClientEntity,
