@@ -15,12 +15,12 @@ import wire from "./wire.js"
 const handles = new HandleRegistry()
 
 /** Server-SDK handle for a Service provided by a Server Endpoint. */
-export class ServerService<Events extends object = {}> extends CoreServerService<Events> {
+export class ServerService<Events extends object = {}, Fallback = never> extends CoreServerService<Events, Fallback> {
   protected constructor() { super() }
 }
 
 /** Server-SDK handle for a Service provided by a Client Endpoint. */
-export class ClientService<Events extends object = {}> extends CoreClientService<Events> {
+export class ClientService<Events extends object = {}, Fallback = never> extends CoreClientService<Events, Fallback> {
   protected constructor() { super() }
 }
 
@@ -97,10 +97,10 @@ class ClientHandler<EventsMap extends object = {}> extends ClientService<EventsM
   public override exists() { return this.service.exists() }
 }
 
-export function prepareService<EventsMap extends object = {}>(key: ServiceKey & { endpoint: "server" }): ServerService<EventsMap>
-export function prepareService<EventsMap extends object = {}>(key: ServiceKey & { endpoint: "client" }): ClientService<EventsMap>
+export function prepareService<EventsMap extends object = {}, Fallback = never>(key: ServiceKey & { endpoint: "server" }): ServerService<EventsMap, Fallback>
+export function prepareService<EventsMap extends object = {}, Fallback = never>(key: ServiceKey & { endpoint: "client" }): ClientService<EventsMap, Fallback>
 export function prepareService(key: ServiceKey): Service
-export function prepareService(key: ServiceKey): Service {
+export function prepareService(key: ServiceKey): unknown {
   if (!isServiceKey(key)) throw new Error("A complete service key is required")
 
   const normalized = Object.freeze({
