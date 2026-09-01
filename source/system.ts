@@ -41,8 +41,8 @@ export interface ServerSystem extends Omit<CoreSystem, "program" | "process" | "
 
   forceCreateProgram(source: ProgramDefinition | string): Promise<Program>
 
-  service<Events extends object = {}, Fallback = never>(key: ServiceKey & { endpoint: "server" }): ServerService<Events, Fallback>
-  service<Events extends object = {}, Fallback = never>(key: ServiceKey & { endpoint: "client" }): ClientService<Events, Fallback>
+  service<Events extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "server" }): ServerService<Events, Fallback>
+  service<Events extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "client" }): ClientService<Events, Fallback>
 }
 
 class SystemHandle implements ServerSystem {
@@ -57,8 +57,8 @@ class SystemHandle implements ServerSystem {
     return program(answer[0])
   }
 
-  public service<ServiceEvents extends object = {}, Fallback = never>(key: ServiceKey & { endpoint: "server" }): ServerService<ServiceEvents, Fallback>
-  public service<ServiceEvents extends object = {}, Fallback = never>(key: ServiceKey & { endpoint: "client" }): ClientService<ServiceEvents, Fallback>
+  public service<ServiceEvents extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "server" }): ServerService<ServiceEvents, Fallback>
+  public service<ServiceEvents extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "client" }): ClientService<ServiceEvents, Fallback>
   public service(key: ServiceKey): unknown { return prepareService(key) }
 
 }

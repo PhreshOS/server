@@ -2,19 +2,22 @@ import { context, type ContextClient } from "../source/main.js"
 
 context.client.lifecycle.subscribe("start", () => undefined)
 
-// @ts-expect-error The current Client has no undeclared application events.
-context.client.subscribe("unknown", () => undefined)
-
-// @ts-expect-error The current Client has no undeclared application events.
+context.client.subscribe("unknown", message => void message)
 context.client.waitFor("unknown")
-
-// @ts-expect-error The current Client has no undeclared application events.
 context.client.events("unknown")
 
 function declaredClient(client: ContextClient<{ changed: number }>) {
   client.subscribe("changed", message => message.toFixed(0))
   client.waitFor("changed")
   client.events("changed")
+  client.subscribe("unknown", message => void message)
 }
 
 void declaredClient
+
+function closedClient(client: ContextClient<{}, never>) {
+  // @ts-expect-error An explicitly closed Client rejects undeclared events.
+  client.subscribe("unknown", () => undefined)
+}
+
+void closedClient

@@ -168,19 +168,19 @@ export interface Process extends Omit<SystemProcessEntity, "server" | "client" |
 }
 
 /** Server-visible common Endpoint handle. */
-export interface Endpoint<Events extends object = {}, Fallback = never> extends Omit<SystemEndpointEntity<Events, Fallback>, "process"> {
+export interface Endpoint<Events extends object = {}, Fallback = unknown> extends Omit<SystemEndpointEntity<Events, Fallback>, "process"> {
   /** Returns the Process that owns this Endpoint. */
   process(): Promise<Process>
 }
 
 /** Server-visible Server handle. */
-export interface Server<Events extends object = {}, Fallback = never> extends Omit<SystemServerEntity<Events, Fallback>, "process"> {
+export interface Server<Events extends object = {}, Fallback = unknown> extends Omit<SystemServerEntity<Events, Fallback>, "process"> {
   /** Returns the Process that owns this Server. */
   process(): Promise<Process>
 }
 
 /** Server-visible Client handle. */
-export interface Client<Events extends object = {}, Fallback = never> extends Omit<SystemClientEntity<Events, Fallback>, "process"> {
+export interface Client<Events extends object = {}, Fallback = unknown> extends Omit<SystemClientEntity<Events, Fallback>, "process"> {
   /** Presentation capability permanently owned by this Client handle. */
   readonly window: Window
 
