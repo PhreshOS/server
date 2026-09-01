@@ -97,6 +97,7 @@ class ContextClientHandle extends ClientBase {
 
   public async stop() { await wire.request(["stop-endpoint", undefined, "client"]) }
   public async isService() { return (await wire.request(["is-service", "client"]) as [boolean])[0] }
+  public async waitReady(timeout?: number) { await wire.request(["wait-ready", undefined, "client"], timeout) }
 }
 
 let ownerPromise: Promise<Process> | null = null

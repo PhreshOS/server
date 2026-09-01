@@ -518,7 +518,7 @@ class ServerHandle extends ServerBase {
   public async isService() { return (await wire.request(["is-service", "server", this.owner.address]) as [boolean])[0] }
 
   public async waitReady(timeout?: number) {
-    await wire.request(["wait-ready", this.owner.address], timeout)
+    await wire.request(["wait-ready", this.owner.address, "server"], timeout)
   }
 
   public async ask<Answer = unknown>(event: string, payload: unknown = undefined) {
@@ -531,7 +531,7 @@ class ServerHandle extends ServerBase {
 
   private async askWithin<Answer>(timeout: number | undefined, event: string, payload: unknown) {
     const deadline = new Deadline(timeout)
-    await wire.requestWithin(["wait-ready", this.owner.address, true], deadline)
+    await wire.requestWithin(["wait-ready", this.owner.address, "server", true], deadline)
 
     const identity = await wire.identity()
     const address = `server:${identity.process}:${randomUUID()}`
@@ -572,6 +572,7 @@ class ClientHandle extends ClientBase {
 
   public async stop() { await wire.request(["stop-endpoint", this.owner.address, "client"]) }
   public async isService() { return (await wire.request(["is-service", "client", this.owner.address]) as [boolean])[0] }
+  public async waitReady(timeout?: number) { await wire.request(["wait-ready", this.owner.address, "client"], timeout) }
 
 }
 

@@ -39,6 +39,10 @@ class ServiceHandle {
     const answer = await wire.request(["service-exists", this.key]) as [boolean]
     return answer[0]
   }
+
+  public async waitReady(timeout?: number) {
+    await wire.request(["service-wait-ready", this.key, timeout], timeout)
+  }
 }
 
 class ServerHandler<EventsMap extends object = {}> extends ServerService<EventsMap> {
@@ -55,9 +59,7 @@ class ServerHandler<EventsMap extends object = {}> extends ServerService<EventsM
   public override readonly publish = (event: string, payload: unknown = undefined) => this.service.publish(event, payload)
   public override exists() { return this.service.exists() }
 
-  public override async waitReady(timeout?: number) {
-    await wire.request(["service-wait-ready", this.key, timeout], timeout)
-  }
+  public override waitReady(timeout?: number) { return this.service.waitReady(timeout) }
 
   public override async ask<Answer = unknown>(event: string, payload: unknown = undefined) {
     return await this.askWithin<Answer>(new Deadline(), event, payload)
@@ -95,6 +97,7 @@ class ClientHandler<EventsMap extends object = {}> extends ClientService<EventsM
 
   public override readonly publish = (event: string, payload: unknown = undefined) => this.service.publish(event, payload)
   public override exists() { return this.service.exists() }
+  public override waitReady(timeout?: number) { return this.service.waitReady(timeout) }
 }
 
 export function prepareService<EventsMap extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "server" }): ServerService<EventsMap, Fallback>
