@@ -5,7 +5,7 @@ The SDK for a PhreshOS Program's Server Endpoint.
 The Server SDK adapts the host-side child-process or Worker boundary to the
 shared Core domain model. It exposes the authoritative `system` and
 `context` available inside a Server without redefining Program, Process,
-Endpoint, Server, or Client.
+Endpoint, ServerEndpoint, or ClientEndpoint.
 
 ## Installation
 

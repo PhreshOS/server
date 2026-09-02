@@ -116,5 +116,5 @@ function systemProgramEvent(event: string, values: unknown[]): unknown {
   return values[0]
 }
 
-/** Authoritative system capabilities for the currently executing Server. */
+/** Authoritative System capabilities for the currently executing Server Endpoint. */
 export const system: CoreSystem = new SystemHandle()

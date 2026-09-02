@@ -8,7 +8,7 @@ import type {
   ClientLaunch
 } from "@phreshos/core"
 import {
-  Client,
+  ClientEndpoint,
   TrafficHandle,
   bindEvents,
   endpoint,
@@ -26,28 +26,28 @@ import {
 import Events from "./events.js"
 import wire from "./wire.js"
 
-/** The executing Process's canonical Client handle. */
-export type ContextClient<Events extends object = {}, Fallback = unknown> = Client<Events, Fallback>
+/** The executing Process's canonical Client Endpoint handle. */
+export type ContextClient<Events extends object = {}, Fallback = unknown> = ClientEndpoint<Events, Fallback>
 
-/** One value addressed to the current Server, with a server-visible sender. */
+/** One value addressed to the current Server Endpoint, with a server-visible sender. */
 export type ContextMessage<Payload = unknown> = CoreContextMessage<Payload, Endpoint | null>
 
 /** Applies the server-visible sender envelope to known Context events. */
 export type ContextEvents<Events extends object> = CoreContextEvents<Events, Endpoint | null>
 
-/** Every event observable through the current Server Context. */
+/** Every event observable through the current Server Endpoint Context. */
 export type ContextCapture<Events extends object = {}> = CoreContextCapture<Events, Endpoint | null>
 
-/** Handles one question addressed to the current Server. */
+/** Handles one question addressed to the current Server Endpoint. */
 export type Answerer<Payload = unknown, Result = undefined> = CoreAnswerer<Payload, Result>
 
-/** Server runtime context: inbound communication, owner hierarchy, and paired Client. */
+/** Server runtime context: inbound communication, owner hierarchy, and paired Client Endpoint. */
 export type Context<Events extends object = {}> = CoreServerContext<Events>
 
-const ClientBase = Client as unknown as new () => object
+const ClientEndpointBase = ClientEndpoint as unknown as new () => object
 
-class ContextClientHandle extends ClientBase {
-  public readonly traffic = new TrafficHandle(null, "client") as unknown as Client["traffic"]
+class ContextClientHandle extends ClientEndpointBase {
+  public readonly traffic = new TrafficHandle(null, "client") as unknown as ClientEndpoint["traffic"]
   public readonly lifecycle = endpointLifecycle(currentAddress, "client") as unknown as EndpointLifecycle
   public readonly window = window(currentAddress)
 
@@ -145,5 +145,5 @@ function contextMessage(value: unknown): ContextMessage {
   return { from: raw.from ? endpoint(raw.from) : null, payload: raw.payload }
 }
 
-/** Inbound events, owner hierarchy, and paired Client for this Server runtime. */
+/** Inbound events, owner hierarchy, and paired Client Endpoint for this Server runtime. */
 export const context: Context = new ServerContextHandle()

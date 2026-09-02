@@ -74,13 +74,13 @@ try {
     `import assert from "node:assert/strict"
 import * as core from "@phreshos/core"
 import * as sdk from "@phreshos/server"
-import { Client, ClientService, Endpoint, Process, Program, Server, ServerService, Service, context, system } from "@phreshos/server"
+import { ClientEndpoint, ClientService, Endpoint, Process, Program, ServerEndpoint, ServerService, Service, context, system } from "@phreshos/server"
 
 assert.equal(Program, core.Program)
 assert.equal(Process, core.Process)
 assert.equal(Endpoint, core.Endpoint)
-assert.equal(Server, core.Server)
-assert.equal(Client, core.Client)
+assert.equal(ServerEndpoint, core.ServerEndpoint)
+assert.equal(ClientEndpoint, core.ClientEndpoint)
 assert.equal("current" in sdk, false)
 assert.equal(typeof context.process, "function")
 assert.equal(typeof context.name, "function")
@@ -142,7 +142,7 @@ setTimeout(() => process.exit(0), 25)
 
   writeFileSync(
     join(consumer, "consumer.ts"),
-    `import { context, system, Client, Server, type Appearance, type PermissionChange, type ServerService, type SystemUploads, type Upload } from "@phreshos/server"
+    `import { context, system, ClientEndpoint, ServerEndpoint, type Appearance, type PermissionChange, type ServerService, type SystemUploads, type Upload } from "@phreshos/server"
 // @ts-expect-error the runtime object is named context
 import { current } from "@phreshos/server"
 
@@ -182,7 +182,7 @@ const shared: Promise<import("@phreshos/server").Process> = program.process.find
   client: false
 })
 const stop = (await shared).client.lifecycle.subscribe("stop", () => undefined)
-const client: Client = context.client
+const client: ClientEndpoint = context.client
 const start: Promise<void> = client.start({ title: "Prepared title" })
 const serverStart: Promise<void> = (await context.process()).server.start({ service: true })
 const systemPrograms: Promise<import("@phreshos/server").Program[]> = system.program.list()
@@ -194,9 +194,9 @@ const geometry: Promise<void> = client.window.setGeometry({
   position: { x: "0/1", y: "0/1" },
   size: { width: "1/2", height: "1/2" }
 })
-type ServerWindowHasSurface = "surface" extends keyof Client["window"] ? true : false
+type ServerWindowHasSurface = "surface" extends keyof ClientEndpoint["window"] ? true : false
 const serverWindowHasSurface: ServerWindowHasSurface = false
-type ServerWindowHasLocal = "local" extends keyof Client["window"] ? true : false
+type ServerWindowHasLocal = "local" extends keyof ClientEndpoint["window"] ? true : false
 const serverWindowHasLocal: ServerWindowHasLocal = false
 
 void appearance

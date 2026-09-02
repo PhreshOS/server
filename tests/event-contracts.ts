@@ -16,7 +16,7 @@ function declaredClient(client: ContextClient<{ changed: number }>) {
 void declaredClient
 
 function closedClient(client: ContextClient<{}, never>) {
-  // @ts-expect-error An explicitly closed Client rejects undeclared events.
+  // @ts-expect-error An explicitly closed Client Endpoint rejects undeclared events.
   client.subscribe("unknown", () => undefined)
 }
 

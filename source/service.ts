@@ -14,12 +14,12 @@ import wire from "./wire.js"
 
 const handles = new HandleRegistry()
 
-/** Server-SDK handle for a Service provided by a Server Endpoint. */
+/** Server SDK handle for a Service provided by a Server Endpoint. */
 export class ServerService<Events extends object = {}, Fallback = unknown> extends CoreServerService<Events, Fallback> {
   protected constructor() { super() }
 }
 
-/** Server-SDK handle for a Service provided by a Client Endpoint. */
+/** Server SDK handle for a Service provided by a Client Endpoint. */
 export class ClientService<Events extends object = {}, Fallback = unknown> extends CoreClientService<Events, Fallback> {
   protected constructor() { super() }
 }

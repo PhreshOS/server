@@ -1,9 +1,6 @@
-import type { Launch, SystemProgramStartup } from "@phreshos/core"
+import type { Launch, ProgramStartup } from "@phreshos/core"
 import type { HandleAddress } from "./domain.js"
 import wire from "./wire.js"
-
-/** Persistent Process creation settings used when the system starts. */
-export type ProgramStartup = SystemProgramStartup
 
 /** Bind startup operations to one canonical Program handle. */
 export default function startup(program: HandleAddress): ProgramStartup {
