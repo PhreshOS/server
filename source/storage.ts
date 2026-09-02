@@ -11,7 +11,7 @@ import {
   statSync
 } from "node:fs"
 import { rm } from "node:fs/promises"
-import { dirname, isAbsolute, join, relative, sep } from "node:path"
+import { dirname, isAbsolute, join, relative, resolve as resolvePath, sep } from "node:path"
 import { Readable } from "node:stream"
 import { pipeline } from "node:stream/promises"
 import type { ReadableStream as NodeReadableStream } from "node:stream/web"
@@ -28,15 +28,15 @@ export function area(program: HandleAddress, which: "data" | "cache"): Storage {
   }, `this Program's ${which}`)
 }
 
-/** Server-local access to the native home directory supplied by the System. */
+/** Server-local filesystem access entered from the user's home. */
 export function systemStorage(): Storage {
   return createStorage(async function () {
     const answer = await wire.request(["host-storage", "path"]) as [string]
     return answer[0]
-  }, "the native home directory")
+  }, "the native filesystem", native)
 }
 
-function createStorage(root: () => Promise<string>, label: string): Storage {
+function createStorage(root: () => Promise<string>, label: string, locate: Locator = contained): Storage {
   let resolvedRoot: Promise<string> | null = null
 
   async function path() {
@@ -59,7 +59,7 @@ function createStorage(root: () => Promise<string>, label: string): Storage {
 
   async function resolve(...parts: string[]) {
     const root = await path()
-    return contained(root, parts)
+    return locate(root, parts)
   }
 
   async function stream(...parts: [string, ...string[]]) {
@@ -125,6 +125,12 @@ function createStorage(root: () => Promise<string>, label: string): Storage {
       mkdirSync(destination, { recursive: true })
     }
   }
+}
+
+type Locator = (root: string, parts: string[]) => string
+
+function native(root: string, parts: string[]) {
+  return resolvePath(root, ...parts)
 }
 
 function contained(root: string, parts: string[]) {
