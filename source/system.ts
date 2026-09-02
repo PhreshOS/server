@@ -2,7 +2,9 @@ import type {
   ServiceKey,
   System as CoreSystem,
   SystemProcess as CoreSystemProcess,
+  SystemProcessEvents,
   SystemProgram as CoreSystemProgram,
+  SystemProgramEvents,
   ProgramDefinition,
   WritableAppearance
 } from "@phreshos/core"
@@ -23,10 +25,14 @@ import { systemStorage } from "./storage.js"
 
 class SystemHandle implements CoreSystem {
   public readonly storage = systemStorage()
-  public readonly appearance = new ServerAppearance() as unknown as WritableAppearance
-  public readonly program = new SystemProgramHandle() as unknown as CoreSystemProgram
-  public readonly process = new SystemProcessHandle() as unknown as CoreSystemProcess
+  public readonly appearance: WritableAppearance = new ServerAppearance()
+  public readonly program: CoreSystemProgram = new SystemProgramHandle()
+  public readonly process: CoreSystemProcess = new SystemProcessHandle()
   public readonly uploads = uploads
+
+  public fetch(input: RequestInfo | URL, init?: RequestInit) {
+    return fetch(input, init)
+  }
 
   public async forceCreateProgram(source: ProgramDefinition | string) {
     const answer = await wire.request(["host-program-force-create", source]) as [ProgramRecord]
@@ -39,7 +45,7 @@ class SystemHandle implements CoreSystem {
 
 }
 
-class SystemProgramHandle extends Events {
+class SystemProgramHandle extends Events<SystemProgramEvents, never> implements CoreSystemProgram {
   public constructor() {
     super(
       (event, listener, impossible) => wire.on("host-program", event, (...values) => listener(systemProgramEvent(event, values)), null, impossible),
@@ -65,7 +71,7 @@ class SystemProgramHandle extends Events {
   }
 }
 
-class SystemProcessHandle extends Events {
+class SystemProcessHandle extends Events<SystemProcessEvents, never> implements CoreSystemProcess {
   public constructor() {
     super(
       (event, listener, impossible) => wire.on("host-process", event, (...values) => listener(systemProcessEvent(event, values)), null, impossible),

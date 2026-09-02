@@ -142,7 +142,7 @@ setTimeout(() => process.exit(0), 25)
 
   writeFileSync(
     join(consumer, "consumer.ts"),
-    `import { context, system, Client, Server, type Appearance, type ServerService, type SystemUploads, type Upload } from "@phreshos/server"
+    `import { context, system, Client, Server, type Appearance, type PermissionChange, type ServerService, type SystemUploads, type Upload } from "@phreshos/server"
 // @ts-expect-error the runtime object is named context
 import { current } from "@phreshos/server"
 
@@ -172,6 +172,10 @@ const stopAnswer = context.answer("outside", message => {
 const program = await context.program()
 const hasAgent: boolean = program.hasAgent
 const agent: Promise<string | null> = program.agent()
+const storedPermission = program.permissions.get("files")
+const permissions = program.permissions.all()
+const assignedPermission: Promise<PermissionChange> = program.permissions.set("files", true)
+const removedPermission: Promise<PermissionChange> = program.permissions.delete("files")
 const shared: Promise<import("@phreshos/server").Process> = program.process.findOrCreate({
   name: "shared-server",
   server: { service: true },
@@ -212,6 +216,10 @@ void processName
 void stopAnswer
 void hasAgent
 void agent
+void storedPermission
+void permissions
+void assignedPermission
+void removedPermission
 void shared
 void stop
 void client

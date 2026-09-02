@@ -1,9 +1,9 @@
-import { createAppearanceSnapshot, type Appearance } from "@phreshos/core"
+import { createAppearanceSnapshot, type Appearance, type AppearanceEvents, type WritableAppearance } from "@phreshos/core"
 import Events from "./events.js"
 import wire from "./wire.js"
 
 /** System Appearance authority reached explicitly through the Server boundary. */
-export default class ServerAppearance extends Events {
+export default class ServerAppearance extends Events<AppearanceEvents, never> implements WritableAppearance {
   public constructor() {
     super(
       (event, listener, impossible) => wire.on("host-appearance", event, value => {

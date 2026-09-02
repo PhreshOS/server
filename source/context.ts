@@ -1,5 +1,6 @@
 import type {
-  Context as CoreContext,
+  Answerer as CoreAnswerer,
+  ServerContext as CoreServerContext,
   ContextCapture as CoreContextCapture,
   ContextEvents as CoreContextEvents,
   ContextMessage as CoreContextMessage,
@@ -18,7 +19,6 @@ import {
   window,
   type Process,
   type ProcessRecord,
-  type Program,
   type ProgramRecord,
   type Endpoint,
   type EndpointReference
@@ -39,37 +39,10 @@ export type ContextEvents<Events extends object> = CoreContextEvents<Events, End
 export type ContextCapture<Events extends object = {}> = CoreContextCapture<Events, Endpoint | null>
 
 /** Handles one question addressed to the current Server. */
-export type Answerer<Payload = unknown, Result = undefined> = (
-  message: ContextMessage<Payload>
-) => Result | Promise<Result>
+export type Answerer<Payload = unknown, Result = undefined> = CoreAnswerer<Payload, Result>
 
 /** Server runtime context: inbound communication, owner hierarchy, and paired Client. */
-export interface Context<Events extends object = {}>
-  extends CoreContext<Events, Endpoint | null> {
-  /** The same Client handle exposed by the executing Process. */
-  readonly client: ContextClient
-
-  /** Registers one answerer; omitting its return produces `undefined`. */
-  answer<Payload = unknown, Result = undefined>(event: string, answerer: Answerer<Payload, Result>): () => void
-
-  /** Returns the Process represented by this Server. */
-  process(): Promise<Process>
-
-  /** Returns the executing Process's Program-local name, or `null` when unnamed. */
-  name(): Promise<string | null>
-
-  /** Returns the parent Process, or `null` when this Process has none. */
-  parent(): Promise<Process | null>
-
-  /** Returns the Program that owns this Server. */
-  program(): Promise<Program>
-
-  /** Returns one immutable option supplied when this Process was created. */
-  option(name: string): Promise<string | undefined>
-
-  /** Stops the executing Server; rejects when it is the final live Endpoint. */
-  stop(): Promise<void>
-}
+export type Context<Events extends object = {}> = CoreServerContext<Events>
 
 const ClientBase = Client as unknown as new () => object
 
@@ -122,7 +95,7 @@ function owner() {
 
 contextClient = new ContextClientHandle(owner) as unknown as ContextClient
 
-class ServerContext extends Events {
+class ServerContextHandle extends Events<ContextEvents<{}>, ContextMessage> implements Context {
   public readonly client = contextClient
 
   public constructor() {
@@ -173,4 +146,4 @@ function contextMessage(value: unknown): ContextMessage {
 }
 
 /** Inbound events, owner hierarchy, and paired Client for this Server runtime. */
-export const context = new ServerContext() as unknown as Context
+export const context: Context = new ServerContextHandle()

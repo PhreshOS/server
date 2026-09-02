@@ -41,7 +41,7 @@ import Deadline from "./deadline.js"
 import HandleRegistry from "./handle-registry.js"
 import { area, sql, store, type Storage } from "./storage.js"
 import startup from "./startup.js"
-import permission from "./permissions.js"
+import { programPermissions } from "./permissions.js"
 import wire from "./wire.js"
 
 export interface HandleAddress {
@@ -61,6 +61,7 @@ export interface ClientDeclarationRecord extends EndpointDeclarationRecord {
   position: Position | null
   layer: ClientDeclaration["layer"]
   minimize: boolean | null
+  permissions: ClientDeclaration["permissions"]
 }
 
 export interface ProgramRecord {
@@ -123,8 +124,8 @@ class ProgramHandle extends ProgramBase {
   public readonly logs
   public readonly database
   public readonly startup
-  public readonly permission
   public readonly process: ProgramProcess
+  public readonly permissions
   private record: ProgramRecord
 
   public constructor(record: ProgramRecord) {
@@ -138,7 +139,7 @@ class ProgramHandle extends ProgramBase {
     this.logs = sql("logs", this.address)
     this.database = sql("database", this.address)
     this.startup = startup(this.address)
-    this.permission = permission(this.address)
+    this.permissions = programPermissions(this.address)
     this.process = new ProgramProcessHandle(this.address, record.reference) as unknown as ProgramProcess
 
     bindEvents(this, scoped("program-host", record.reference, programEvent))
@@ -224,7 +225,8 @@ function clientDeclaration(record: ClientDeclarationRecord): ClientDeclaration {
     size: record.size,
     position: record.position,
     layer: record.layer,
-    minimize: record.minimize
+    minimize: record.minimize,
+    permissions: Object.freeze(Object.fromEntries(Object.entries(record.permissions).map(([name, values]) => [name, Object.freeze([...values])])))
   })
 }
 
