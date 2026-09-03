@@ -6,6 +6,7 @@ import {
   ServerEndpoint as CoreServerEndpoint,
   parseClientPermissions,
   type AnswerCapture,
+  type AnswerOutcome,
   type AnswerSubscriber,
   type AskCapture,
   type AskSubscriber,
@@ -18,7 +19,6 @@ import {
   type Launch,
   type ClientLaunch,
   type ServerLaunch,
-  type Outcome,
   type Position,
   type ProgramIconSize,
   type ProgramCommandChunk,
@@ -398,11 +398,11 @@ export class ServerTrafficHandle extends TrafficHandle {
     return wire.observe(this.target, "server", "answer", null, (event, questionId, message) => {
       if (typeof event !== "string" || typeof questionId !== "string") return
 
-      const raw = message as { to?: EndpointReference, outcome?: Outcome }
+      const raw = message as { to?: EndpointReference, outcome?: AnswerOutcome }
       subscriber({
         event,
         questionId,
-        message: { to: endpoint(raw.to), outcome: raw.outcome as Outcome }
+        message: { to: endpoint(raw.to), outcome: raw.outcome as AnswerOutcome }
       })
     }, impossible)
   }

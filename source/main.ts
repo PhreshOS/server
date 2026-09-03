@@ -66,7 +66,7 @@ export type {
   LogSource,
   Message,
   OtherStat,
-  Outcome,
+  AnswerOutcome,
   Permission,
   PermissionChange,
   PermissionDefinition,

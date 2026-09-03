@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import type { Cleanup, Outcome, ServiceKey } from "@phreshos/core"
+import type { Cleanup, ServiceKey } from "@phreshos/core"
 import Deadline from "./deadline.js"
 import { defaultTimeout } from "./events.js"
 import type { HandleAddress } from "./domain.js"
@@ -24,6 +24,10 @@ interface PendingStream {
   wake: (() => void) | null
   timer: ReturnType<typeof setTimeout>
 }
+
+type RequestOutcome<Result = unknown> =
+  | Readonly<{ success: true, result: Result }>
+  | Readonly<{ success: false, error: string }>
 
 interface Question {
   address: string
@@ -79,7 +83,7 @@ class Wire {
       }
 
       if (values[0] === "answer" && typeof values[1] === "string") {
-        this.settle(values[1], values.at(-1) as Outcome)
+        this.settle(values[1], values.at(-1) as RequestOutcome)
         return
       }
 
@@ -375,7 +379,7 @@ class Wire {
     )
   }
 
-  private sendAnswer(route: string, question: Question, event: string, outcome: Outcome) {
+  private sendAnswer(route: string, question: Question, event: string, outcome: RequestOutcome) {
     this.send(route, "answer", question.address, question.id, event, outcome)
   }
 
@@ -396,7 +400,7 @@ class Wire {
     }
   }
 
-  private settle(question: string, outcome: Outcome) {
+  private settle(question: string, outcome: RequestOutcome) {
     const pending = this.pending.get(question)
     if (!pending) return
 
@@ -426,7 +430,7 @@ class Wire {
         stream.queue.push(value)
       }
     } else if (operation === "answer") {
-      const outcome = value as Outcome
+      const outcome = value as RequestOutcome
 
       if (outcome?.success === true) stream.ended = true
       else if (outcome?.success === false && typeof outcome.error === "string") stream.failure = new Error(outcome.error)
@@ -502,7 +506,7 @@ interface EndpointTransport {
 
 const maximumStreamQueue = 256
 
-function failed(error: unknown): Outcome<never> {
+function failed(error: unknown): RequestOutcome<never> {
   return {
     success: false,
     error: error instanceof Error ? error.message : "An unknown exception occurred"
