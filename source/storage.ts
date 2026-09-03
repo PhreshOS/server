@@ -25,7 +25,7 @@ export function area(program: HandleAddress, which: "data" | "cache"): Storage {
   return createStorage(async function () {
     const answer = await wire.request([which, program, "path"]) as [string]
     return answer[0]
-  }, `this Program's ${which}`)
+  }, `this Program's ${which}`, contained, () => wire.signal)
 }
 
 /** Server-local filesystem access entered from the user's home. */
@@ -33,15 +33,17 @@ export function systemStorage(): Storage {
   return createStorage(async function () {
     const answer = await wire.request(["host-storage", "path"]) as [string]
     return answer[0]
-  }, "the native filesystem", native)
+  }, "the native filesystem", native, () => wire.signal)
 }
 
-function createStorage(root: () => Promise<string>, label: string, locate: Locator = contained): Storage {
+function createStorage(root: () => Promise<string>, label: string, locate: Locator = contained, lifetime?: Lifetime): Storage {
   let resolvedRoot: Promise<string> | null = null
 
   async function path() {
+    active(lifetime)
     if (!resolvedRoot) {
       const resolving = root().then(value => {
+        active(lifetime)
         if (!isAbsolute(value)) throw new Error("The system returned an invalid Storage directory")
         return value
       })
@@ -63,16 +65,18 @@ function createStorage(root: () => Promise<string>, label: string, locate: Locat
   }
 
   async function stream(...parts: [string, ...string[]]) {
+    const signal = active(lifetime)
     const destination = await resolve(...parts)
     const found = describe(destination)
 
     if (!found) throw new Error(`There is no ${parts.join("/")} in ${label}`)
     if (found.kind !== "file") throw new Error(`${parts.join("/")} is not a file`)
 
-    return Readable.toWeb(createReadStream(destination)) as unknown as ReadableStream<Uint8Array>
+    return Readable.toWeb(createReadStream(destination, { signal })) as unknown as ReadableStream<Uint8Array>
   }
 
   async function write(...args: [...path: [string, ...string[]], value: unknown]) {
+    const signal = active(lifetime)
     const parts = args.slice(0, -1) as string[]
     const destination = await resolve(...parts)
     const temporary = join(dirname(destination), `.${randomUUID()}.writing`)
@@ -82,8 +86,10 @@ function createStorage(root: () => Promise<string>, label: string, locate: Locat
     try {
       await pipeline(
         Readable.fromWeb(content(args.at(-1)).stream as unknown as NodeReadableStream<Uint8Array>),
-        createWriteStream(temporary, { flags: "wx" })
+        createWriteStream(temporary, { flags: "wx" }),
+        { signal }
       )
+      signal?.throwIfAborted()
       renameSync(temporary, destination)
     } catch (error) {
       await rm(temporary, { force: true }).catch(() => undefined)
@@ -106,16 +112,20 @@ function createStorage(root: () => Promise<string>, label: string, locate: Locat
     },
     write,
     async stat(...parts) {
+      active(lifetime)
       return describe(await resolve(...parts))
     },
     async list(...parts) {
+      active(lifetime)
       return readdirSync(await resolve(...parts)).sort()
     },
     async delete(...parts) {
+      active(lifetime)
       if (!parts.length) throw new Error("Emptying a place is clear, not delete")
       rmSync(await resolve(...parts), { recursive: true, force: true })
     },
     async clear(...parts) {
+      active(lifetime)
       const destination = await resolve(...parts)
       const found = describe(destination)
 
@@ -128,6 +138,13 @@ function createStorage(root: () => Promise<string>, label: string, locate: Locat
 }
 
 type Locator = (root: string, parts: string[]) => string
+type Lifetime = () => AbortSignal
+
+function active(lifetime?: Lifetime) {
+  const signal = lifetime?.()
+  signal?.throwIfAborted()
+  return signal
+}
 
 function native(root: string, parts: string[]) {
   return resolvePath(root, ...parts)

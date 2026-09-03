@@ -1,5 +1,4 @@
 import {
-  parseShellEvent,
   type ServiceKey,
   type System as CoreSystem,
   type SystemProcess as CoreSystemProcess,
@@ -24,6 +23,7 @@ import ServerAppearance from "./appearance.js"
 import wire from "./wire.js"
 import { prepareService } from "./service.js"
 import { systemStorage } from "./storage.js"
+import shell from "./shell.js"
 
 class SystemHandle implements CoreSystem {
   public readonly storage = systemStorage()
@@ -32,14 +32,14 @@ class SystemHandle implements CoreSystem {
   public readonly process: CoreSystemProcess = new SystemProcessHandle()
   public readonly uploads = uploads
 
-  public fetch(input: RequestInfo | URL, init?: RequestInit) {
-    return fetch(input, init)
+  public async fetch(input: RequestInfo | URL, init?: RequestInit) {
+    const request = new Request(input, init)
+    return await fetch(request, { signal: AbortSignal.any([request.signal, wire.signal]) })
   }
 
   public async *shell(command: string, options: ShellOptions = {}) {
-    const { signal, ...settings } = options
-
-    for await (const event of wire.stream(["shell", command, settings], undefined, signal)) yield parseShellEvent(event)
+    const signal = options.signal ? AbortSignal.any([options.signal, wire.signal]) : wire.signal
+    yield* shell(command, { ...options, signal })
   }
 
   public async forceCreateProgram(source: ProgramDefinition | string) {

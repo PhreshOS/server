@@ -32,6 +32,7 @@ interface Question {
 
 /** The server endpoint's sole IPC adapter. */
 class Wire {
+  private readonly lifetime = new AbortController()
   private readonly pending = new Map<string, Pending>()
   private readonly streams = new Map<string, PendingStream>()
   private readonly subscribers = new Map<string, Set<Handler>>()
@@ -44,7 +45,10 @@ class Wire {
 
   private readonly transport = endpointTransport()
 
+  public readonly signal = this.lifetime.signal
+
   public constructor() {
+    this.transport.onClose(() => this.close())
     this.transport.onMessage(message => {
       const bytes = transportMessageBytes(message)
       if (!bytes) return
@@ -95,10 +99,12 @@ class Wire {
   }
 
   public request(values: unknown[], timeout = defaultTimeout): Promise<unknown> {
+    if (this.signal.aborted) return Promise.reject(this.signal.reason)
     return this.requestWithin(values, new Deadline(timeout))
   }
 
   public requestWithin(values: unknown[], deadline: Deadline): Promise<unknown> {
+    if (this.signal.aborted) return Promise.reject(this.signal.reason)
     const question = randomUUID()
 
     return new Promise((resolve, reject) => {
@@ -432,6 +438,26 @@ class Wire {
     stream.wake?.()
     stream.wake = null
   }
+
+  private close() {
+    if (this.signal.aborted) return
+
+    const error = new Error("This System connection is closed")
+    this.lifetime.abort(error)
+
+    for (const pending of this.pending.values()) {
+      clearTimeout(pending.timer)
+      pending.reject(error)
+    }
+    this.pending.clear()
+
+    for (const stream of this.streams.values()) {
+      clearTimeout(stream.timer)
+      stream.failure = error
+      stream.wake?.()
+      stream.wake = null
+    }
+  }
 }
 
 function endpointTransport(): EndpointTransport {
@@ -439,11 +465,13 @@ function endpointTransport(): EndpointTransport {
 
   if (worker) return {
     onMessage: listener => worker.on("message", listener),
+    onClose: listener => worker.once("close", listener),
     send: message => worker.postMessage(message)
   }
 
   return {
     onMessage: listener => { process.on("message", listener) },
+    onClose: listener => { process.once("disconnect", listener) },
     send: message => { process.send?.(message) }
   }
 }
@@ -468,6 +496,7 @@ function transportMessageBytes(value: unknown) {
 
 interface EndpointTransport {
   onMessage(listener: (message: unknown) => void): void
+  onClose(listener: () => void): void
   send(message: Uint8Array): void
 }
 

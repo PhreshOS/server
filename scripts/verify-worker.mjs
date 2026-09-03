@@ -12,13 +12,14 @@ const sdk = pathToFileURL(resolve("dist/main.js")).href
 
 await writeFile(entry, `
 import { parentPort } from "node:worker_threads"
-import { context } from ${JSON.stringify(sdk)}
+import { context, system } from ${JSON.stringify(sdk)}
 
-const [value, name] = await Promise.all([
+const [value, name, uploadsPath] = await Promise.all([
   context.option("worker-test"),
-  context.name()
+  context.name(),
+  system.uploads.path()
 ])
-parentPort.postMessage({ verified: value, name })
+parentPort.postMessage({ verified: value, name, uploadsPath })
 `)
 
 try {
@@ -31,7 +32,7 @@ try {
     worker.on("error", reject)
     worker.on("message", message => {
       if (!(message instanceof Uint8Array)) {
-        if (message?.verified === "worker-value" && message.name === "worker-main") {
+        if (message?.verified === "worker-value" && message.name === "worker-main" && message.uploadsPath === directory) {
           clearTimeout(timer)
           resolve(message)
         }
@@ -43,14 +44,18 @@ try {
       if (route === "boundary" && values[0] === "ready") ready = true
 
       if (route === "end-host" && values[0] === "wait" && typeof values[1] === "string") {
-        const result = values[2] === "current-process" ? [workerProcess()] : ["worker-value"]
+        const result = values[2] === "current-process"
+          ? [workerProcess()]
+          : values[2] === "uploads" && values[3] === "access"
+            ? [directory, 1024]
+            : ["worker-value"]
 
         worker.postMessage(serialize(["end-host", "answer", values[1], { success: true, result }]))
       }
     })
   })
 
-  assert.deepEqual(await verified, { verified: "worker-value", name: "worker-main" })
+  assert.deepEqual(await verified, { verified: "worker-value", name: "worker-main", uploadsPath: directory })
   assert.equal(ready, true)
 
   await worker.terminate()

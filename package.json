@@ -43,8 +43,9 @@
     "build": "node --run clean && tsc --noEmit false --outDir dist --rootDir source",
     "verify:package": "node scripts/verify-package.mjs",
     "verify:process": "node scripts/verify-process.mjs",
+    "verify:shell": "node scripts/verify-shell.mjs",
     "verify:worker": "node scripts/verify-worker.mjs",
-    "verify": "node --run check && node --run build && node --run verify:worker && node --run verify:process && node --run verify:package",
+    "verify": "node --run check && node --run build && node --run verify:worker && node --run verify:process && node --run verify:shell && node --run verify:package",
     "prepack": "node --run build"
   },
   "peerDependencies": {

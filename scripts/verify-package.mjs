@@ -92,6 +92,7 @@ assert.equal(typeof context.client.isService, "function")
 assert.equal(typeof context.client.waitReady, "function")
 assert.equal(typeof system.appearance.snapshot, "function")
 assert.equal(typeof system.uploads.write, "function")
+assert.equal(typeof system.uploads.path, "function")
 assert.equal(typeof system.uploads.stream, "function")
 assert.equal(typeof system.uploads.stat, "function")
 assert.equal("serve" in system, false)
@@ -151,6 +152,7 @@ type CounterEvents = { change: number }
 
 const appearance: Promise<Appearance> = system.appearance.snapshot()
 const uploads: SystemUploads = system.uploads
+const uploadsPath: Promise<string> = uploads.path()
 const upload: Promise<Upload> = uploads.write("hello")
 const uploadText: Promise<string> = uploads.text("00000000-0000-0000-0000-000000000000.txt")
 const homeFile: Promise<string> = system.storage.text("example.txt")

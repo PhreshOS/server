@@ -2,7 +2,7 @@ import { isUploadFile, type SystemUploads, type Upload } from "@phreshos/core"
 import { randomUUID } from "node:crypto"
 import { createReadStream, createWriteStream, mkdirSync } from "node:fs"
 import { rename, rm } from "node:fs/promises"
-import { join } from "node:path"
+import { isAbsolute, join } from "node:path"
 import { Readable } from "node:stream"
 import { pipeline } from "node:stream/promises"
 import type { ReadableStream as NodeReadableStream } from "node:stream/web"
@@ -13,7 +13,12 @@ import wire from "./wire.js"
 class ServerUploads implements SystemUploads {
   private accessPromise: Promise<Access> | null = null
 
+  public async path() {
+    return (await this.access()).root
+  }
+
   public async write(value: unknown): Promise<Upload> {
+    const signal = active()
     const access = await this.access()
     const source = content(value)
     const identity = randomUUID()
@@ -34,8 +39,10 @@ class ServerUploads implements SystemUploads {
             yield chunk
           }
         },
-        createWriteStream(temporary, { flags: "wx" })
+        createWriteStream(temporary, { flags: "wx" }),
+        { signal }
       )
+      signal.throwIfAborted()
       await rename(temporary, destination)
     } catch (error) {
       await rm(temporary, { force: true }).catch(() => undefined)
@@ -50,9 +57,10 @@ class ServerUploads implements SystemUploads {
   }
 
   public async stream(file: string): Promise<ReadableStream<Uint8Array>> {
+    const signal = active()
     requireFile(file)
     const { root } = await this.access()
-    return Readable.toWeb(createReadStream(join(root, file))) as unknown as ReadableStream<Uint8Array>
+    return Readable.toWeb(createReadStream(join(root, file), { signal })) as unknown as ReadableStream<Uint8Array>
   }
 
   public async bytes(file: string) {
@@ -68,17 +76,19 @@ class ServerUploads implements SystemUploads {
   }
 
   public async stat(file: string): Promise<Upload | null> {
+    active()
     requireFile(file)
     const answer = await wire.request(["uploads", "stat", file]) as [Upload | null]
     return answer[0]
   }
 
   private access() {
+    active()
     if (!this.accessPromise) {
       const resolving = wire.request(["uploads", "access"]).then(answer => {
         const [root, limit] = answer as [unknown, unknown]
 
-        if (typeof root !== "string" || !root || typeof limit !== "number" || !Number.isFinite(limit) || limit <= 0) {
+        if (typeof root !== "string" || !isAbsolute(root) || typeof limit !== "number" || !Number.isFinite(limit) || limit <= 0) {
           throw new Error("The System returned invalid upload access")
         }
 
@@ -94,6 +104,11 @@ class ServerUploads implements SystemUploads {
 
     return this.accessPromise
   }
+}
+
+function active() {
+  wire.signal.throwIfAborted()
+  return wire.signal
 }
 
 function requireFile(file: string) {
