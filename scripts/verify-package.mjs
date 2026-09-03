@@ -100,6 +100,7 @@ assert.equal(typeof system.storage.resolve, "function")
 assert.equal(typeof system.program.list, "function")
 assert.equal(typeof system.process.list, "function")
 assert.equal(typeof system.service, "function")
+assert.equal(typeof system.shell, "function")
 assert.equal("subscribe" in system, false)
 const service = system.service({ program: "counter", process: "main", endpoint: "server" })
 const clientService = system.service({ program: "counter", process: "main", endpoint: "client" })
@@ -189,6 +190,7 @@ const systemPrograms: Promise<import("@phreshos/server").Program[]> = system.pro
 const systemProgram: Promise<import("@phreshos/server").Program | null> = system.program.find("counter")
 const systemProcesses: Promise<import("@phreshos/server").Process[]> = system.process.list()
 const systemProcess: Promise<import("@phreshos/server").Process | null> = system.process.find("process-identity")
+const shell: AsyncGenerator<import("@phreshos/server").ShellEvent, void, void> = system.shell("printf hello", { cwd: "/tmp" })
 const forcedProgram: Promise<import("@phreshos/server").Program> = system.forceCreateProgram("./phresh.config.ts")
 const geometry: Promise<void> = client.window.setGeometry({
   position: { x: "0/1", y: "0/1" },
@@ -224,6 +226,7 @@ void shared
 void stop
 void client
 void start
+void shell
 void geometry
 void serverWindowHasSurface
 void serverWindowHasLocal

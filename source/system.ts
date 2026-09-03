@@ -1,12 +1,14 @@
-import type {
-  ServiceKey,
-  System as CoreSystem,
-  SystemProcess as CoreSystemProcess,
-  SystemProcessEvents,
-  SystemProgram as CoreSystemProgram,
-  SystemProgramEvents,
-  ProgramDefinition,
-  WritableAppearance
+import {
+  parseShellEvent,
+  type ServiceKey,
+  type System as CoreSystem,
+  type SystemProcess as CoreSystemProcess,
+  type SystemProcessEvents,
+  type SystemProgram as CoreSystemProgram,
+  type SystemProgramEvents,
+  type ProgramDefinition,
+  type ShellOptions,
+  type WritableAppearance
 } from "@phreshos/core"
 import type { ClientService, ServerService } from "./service.js"
 import Events from "./events.js"
@@ -32,6 +34,12 @@ class SystemHandle implements CoreSystem {
 
   public fetch(input: RequestInfo | URL, init?: RequestInit) {
     return fetch(input, init)
+  }
+
+  public async *shell(command: string, options: ShellOptions = {}) {
+    const { signal, ...settings } = options
+
+    for await (const event of wire.stream(["shell", command, settings], undefined, signal)) yield parseShellEvent(event)
   }
 
   public async forceCreateProgram(source: ProgramDefinition | string) {

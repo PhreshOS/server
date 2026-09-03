@@ -85,6 +85,8 @@ export type {
   SystemUploads,
   Upload,
   ServerTraffic,
+  ShellEvent,
+  ShellOptions,
   System,
   SystemProcess,
   SystemProgram,
