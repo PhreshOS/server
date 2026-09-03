@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 import { Worker } from "node:worker_threads"
-import { deserialize, serialize } from "../dist/messagepack.js"
+import { deserialize, serialize } from "@the-link/messagepack"
 
 const directory = await mkdtemp(join(tmpdir(), "phresh-server-worker-"))
 const entry = join(directory, "server.mjs")

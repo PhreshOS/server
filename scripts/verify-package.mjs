@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { decode } from "@msgpack/msgpack"
+import { deserialize as decode } from "@the-link/messagepack"
 import manifest from "../package.json" with { type: "json" }
 
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), "..")

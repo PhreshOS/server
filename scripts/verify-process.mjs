@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { deserialize, serialize } from "../dist/messagepack.js"
+import { deserialize, serialize } from "@the-link/messagepack"
 
 const sent = []
 const originalSend = process.send

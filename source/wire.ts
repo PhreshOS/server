@@ -3,7 +3,7 @@ import type { Cleanup, ServiceKey } from "@phreshos/core"
 import Deadline from "./deadline.js"
 import { defaultTimeout } from "./events.js"
 import type { HandleAddress } from "./domain.js"
-import { deserialize, serialize } from "./messagepack.js"
+import { deserialize, serialize } from "@the-link/messagepack"
 import { parentPort } from "node:worker_threads"
 
 type Handler = (...values: unknown[]) => unknown
