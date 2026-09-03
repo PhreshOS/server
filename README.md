@@ -1,11 +1,21 @@
 # `@phreshos/server`
 
-The SDK for a PhreshOS Program's Server Endpoint.
+The runtime adapter for a PhreshOS Program's Server Endpoint.
 
-The Server SDK adapts the host-side child-process or Worker boundary to the
-shared Core domain model. It exposes the authoritative `system` and
-`context` available inside a Server without redefining Program, Process,
-Endpoint, ServerEndpoint, or ClientEndpoint.
+[Documentation](https://docs.phreshos.com/sdks/server) ·
+[Server Context](https://docs.phreshos.com/runtime/context) ·
+[Communication](https://docs.phreshos.com/runtime/communication) ·
+[Source](https://github.com/PhreshOS/server)
+
+## Role
+
+The Server SDK exposes the complete Core `system` contract and the current
+Server `context` inside both supported execution modes: supervised child
+processes and System-owned Workers.
+
+It adapts the execution boundary without redefining Program, Process, Endpoint,
+or Service. The System remains authoritative for execution, persistence,
+routing, and host capabilities.
 
 ## Installation
 
@@ -18,48 +28,17 @@ Endpoint, ServerEndpoint, or ClientEndpoint.
 
 `@phreshos/core` is a peer dependency.
 
-## Context
-
 ```ts
-import { context } from "@phreshos/server"
+import { context, system } from "@phreshos/server"
 
-context.answer("counter.read", async () => {
-  return { value: 1 }
-})
-
-context.publish("changed", { value: 1 })
+context.answer("counter.read", async () => ({ value: 1 }))
 
 const program = await context.program()
-const process = await context.process()
-const client = context.client
-```
-
-`context` belongs to the executing Server. It provides communication, question
-answering, navigation to its Program and Process, its paired Client, and
-Server-owned capabilities.
-
-## System
-
-```ts
-import { system } from "@phreshos/server"
-
-const programs = await system.program.list()
-const processes = await system.process.list()
 const appearance = await system.appearance.snapshot()
-
-const service = system.service({
-  program: "browser",
-  process: "main",
-  endpoint: "server",
-})
 ```
 
-The Server System exposes authoritative registries, Appearance, storage,
-uploads, Fetch, and exact Service handles. Requests read current state.
-Subscriptions observe future publications and do not replay an initial value.
-
-The same SDK surface works in both supported Server execution modes:
-`startCommand` child processes and System-owned `entryFile` Workers.
+See [Server SDK](https://docs.phreshos.com/sdks/server) for the complete entry
+points and execution contract.
 
 ## Development
 
@@ -68,16 +47,21 @@ bun install --frozen-lockfile
 bun run verify
 ```
 
-`verify` checks the source, both Server runtime adapters, build, and published
-package shape.
+`verify` checks the types, both execution adapters, System operations, build,
+and published package shape.
 
-See the [Client and Server documentation](https://github.com/PhreshOS/docs/blob/main/content/docs/sdks/client-and-server.mdx)
-for the shared model and authority boundary.
+## Related repositories
 
-## Repository boundary
+- [`@phreshos/core`](https://github.com/PhreshOS/core) owns every shared
+  contract and domain class exposed here.
+- [`@phreshos/client`](https://github.com/PhreshOS/client) adapts the paired
+  Client Endpoint boundary.
+- [`@phreshos/node`](https://github.com/PhreshOS/node) exposes the same System
+  contract to external Node.js code.
+- [PhreshOS System](https://github.com/PhreshOS/system) owns execution,
+  persistence, and routing.
 
-This repository owns the Server runtime adapter. Core owns the domain model and
-the System owns authoritative execution, persistence, and routing.
+## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the repository workflow and
 [SECURITY.md](SECURITY.md) for private vulnerability reporting.
