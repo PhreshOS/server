@@ -4,6 +4,7 @@ import {
   Process as CoreProcess,
   Program as CoreProgram,
   ServerEndpoint as CoreServerEndpoint,
+  parseClientPermissions,
   type AnswerCapture,
   type AnswerSubscriber,
   type AskCapture,
@@ -223,7 +224,7 @@ function clientDeclaration(record: ClientDeclarationRecord): ClientDeclaration {
     position: record.position,
     layer: record.layer,
     minimize: record.minimize,
-    permissions: Object.freeze(Object.fromEntries(Object.entries(record.permissions).map(([name, values]) => [name, Object.freeze([...values])])))
+    permissions: parseClientPermissions(record.permissions)
   })
 }
 

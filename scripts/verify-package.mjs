@@ -175,10 +175,12 @@ const stopAnswer = context.answer("outside", message => {
 const program = await context.program()
 const hasAgent: boolean = program.hasAgent
 const agent: Promise<string | null> = program.agent()
-const storedPermission = program.permissions.get("files")
+const storedPermission = program.permissions.get("all")
 const permissions = program.permissions.all()
-const assignedPermission: Promise<PermissionChange> = program.permissions.set("files", true)
-const removedPermission: Promise<PermissionChange> = program.permissions.delete("files")
+const assignedPermission: Promise<PermissionChange> = program.permissions.set("all", true)
+const removedPermission: Promise<PermissionChange> = program.permissions.delete("all")
+// @ts-expect-error permission names are closed by the Core catalog
+program.permissions.get("files")
 const shared: Promise<import("@phreshos/server").Process> = program.process.findOrCreate({
   name: "shared-server",
   server: { service: true },
