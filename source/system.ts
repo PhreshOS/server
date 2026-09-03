@@ -24,6 +24,7 @@ import wire from "./wire.js"
 import { prepareService } from "./service.js"
 import { systemStorage } from "./storage.js"
 import shell from "./shell.js"
+import websocket from "./websocket.js"
 
 class SystemHandle implements CoreSystem {
   public readonly storage = systemStorage()
@@ -35,6 +36,10 @@ class SystemHandle implements CoreSystem {
   public async fetch(input: RequestInfo | URL, init?: RequestInit) {
     const request = new Request(input, init)
     return await fetch(request, { signal: AbortSignal.any([request.signal, wire.signal]) })
+  }
+
+  public websocket(url: string | URL, protocols?: string | string[]) {
+    return websocket(url, protocols, wire.signal)
   }
 
   public async *shell(command: string, options: ShellOptions = {}) {
