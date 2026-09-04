@@ -178,8 +178,9 @@ const hasAgent: boolean = program.hasAgent
 const agent: Promise<string | null> = program.agent()
 const storedPermission = program.permissions.get("all")
 const permissions = program.permissions.all()
-const assignedPermission: Promise<PermissionChange> = program.permissions.set("all", true)
-const removedPermission: Promise<PermissionChange> = program.permissions.delete("all")
+const storedAllows: Promise<boolean> = program.permissions.allows("network", ["https://api.example.com"])
+const assignedPermission: Promise<void> = program.permissions.set("all", true)
+const removedPermission: Promise<void> = program.permissions.delete("all")
 // @ts-expect-error permission names are closed by the Core catalog
 program.permissions.get("files")
 const shared: Promise<import("@phreshos/server").Process> = program.process.findOrCreate({
@@ -191,6 +192,10 @@ const stop = (await shared).client.lifecycle.subscribe("stop", () => undefined)
 const client: ClientEndpoint = context.client
 const start: Promise<void> = client.start({ title: "Prepared title" })
 const serverStart: Promise<void> = (await context.process()).server.start({ service: true })
+const temporaryPermissions = (await context.process()).permissions.all()
+const temporaryAllows: Promise<boolean> = (await context.process()).permissions.allows("network", ["https://api.example.com"])
+const assignedTemporaryPermission: Promise<void> = (await context.process()).permissions.set("network", ["https://api.example.com"])
+const removedTemporaryPermission: Promise<void> = (await context.process()).permissions.delete("network")
 const systemPrograms: Promise<import("@phreshos/server").Program[]> = system.program.list()
 const systemProgram: Promise<import("@phreshos/server").Program | null> = system.program.find("counter")
 const systemProcesses: Promise<import("@phreshos/server").Process[]> = system.process.list()
@@ -225,8 +230,13 @@ void hasAgent
 void agent
 void storedPermission
 void permissions
+void storedAllows
 void assignedPermission
 void removedPermission
+void temporaryPermissions
+void temporaryAllows
+void assignedTemporaryPermission
+void removedTemporaryPermission
 void shared
 void stop
 void client
