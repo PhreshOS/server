@@ -37,7 +37,7 @@ import Deadline from "./deadline.js"
 import HandleRegistry from "./handle-registry.js"
 import { area, sql, store, type Storage } from "./storage.js"
 import startup from "./startup.js"
-import { processPermissions, programPermissions } from "./permissions.js"
+import { programPermissions } from "./permissions.js"
 import wire from "./wire.js"
 
 export interface HandleAddress {
@@ -316,7 +316,6 @@ class ProcessHandle extends ProcessBase {
   public readonly startedAt: Date
   public readonly server: ServerEndpoint
   public readonly client: ClientEndpoint
-  public readonly permissions
   private readonly ownerProgram: Program
   private readonly options: Record<string, string>
 
@@ -330,7 +329,6 @@ class ProcessHandle extends ProcessBase {
     this.options = record.options
     this.server = endpointHandle(this, "server", endpoints.server) as ServerEndpoint
     this.client = endpointHandle(this, "client", endpoints.client) as ClientEndpoint
-    this.permissions = processPermissions(this.address)
 
     bindEvents(this, scoped("process-host", record.reference, processEvent))
   }

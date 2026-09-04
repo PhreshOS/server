@@ -192,10 +192,8 @@ const stop = (await shared).client.lifecycle.subscribe("stop", () => undefined)
 const client: ClientEndpoint = context.client
 const start: Promise<void> = client.start({ title: "Prepared title" })
 const serverStart: Promise<void> = (await context.process()).server.start({ service: true })
-const temporaryPermissions = (await context.process()).permissions.all()
-const temporaryAllows: Promise<boolean> = (await context.process()).permissions.allows("network", ["https://api.example.com"])
-const assignedTemporaryPermission: Promise<void> = (await context.process()).permissions.set("network", ["https://api.example.com"])
-const removedTemporaryPermission: Promise<void> = (await context.process()).permissions.delete("network")
+// @ts-expect-error permissions belong to the Program, never one Process
+(await context.process()).permissions
 const systemPrograms: Promise<import("@phreshos/server").Program[]> = system.program.list()
 const systemProgram: Promise<import("@phreshos/server").Program | null> = system.program.find("counter")
 const systemProcesses: Promise<import("@phreshos/server").Process[]> = system.process.list()
@@ -233,10 +231,6 @@ void permissions
 void storedAllows
 void assignedPermission
 void removedPermission
-void temporaryPermissions
-void temporaryAllows
-void assignedTemporaryPermission
-void removedTemporaryPermission
 void shared
 void stop
 void client

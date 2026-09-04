@@ -1,10 +1,8 @@
 import {
   parsePermission,
   parsePermissions,
-  type PermissionAssignments,
   type PermissionInput,
   type PermissionName,
-  type ProcessPermissions,
   type ProgramPermissions
 } from "@phreshos/core"
 import type { HandleAddress } from "./domain.js"
@@ -12,17 +10,8 @@ import wire from "./wire.js"
 
 /** Bind authoritative stored grants to one exact Program handle. */
 export function programPermissions(program: HandleAddress): ProgramPermissions {
-  return assignedPermissions("program-permissions", program)
-}
-
-/** Bind temporary grants to one exact Process handle. */
-export function processPermissions(process: HandleAddress): ProcessPermissions {
-  return assignedPermissions("process-permissions", process)
-}
-
-function assignedPermissions(word: "program-permissions" | "process-permissions", subject: HandleAddress): PermissionAssignments {
   const operate = <Name extends PermissionName>(operation: "all" | "get" | "allows" | "set" | "delete", name?: Name, permission?: PermissionInput<Name>) => (
-    wire.request([word, subject, operation, name, permission])
+    wire.request(["program-permissions", program, operation, name, permission])
   )
 
   return {
