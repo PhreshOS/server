@@ -191,9 +191,10 @@ const shared: Promise<import("@phreshos/server").Process> = program.process.find
 const stop = (await shared).client.lifecycle.subscribe("stop", () => undefined)
 const client: ClientEndpoint = context.client
 const start: Promise<void> = client.start({ title: "Prepared title" })
-const serverStart: Promise<void> = (await context.process()).server.start({ service: true })
+const currentProcess = await context.process()
+const serverStart: Promise<void> = currentProcess.server.start({ service: true })
 // @ts-expect-error permissions belong to the Program, never one Process
-(await context.process()).permissions
+currentProcess.permissions
 const systemPrograms: Promise<import("@phreshos/server").Program[]> = system.program.list()
 const systemProgram: Promise<import("@phreshos/server").Program | null> = system.program.find("counter")
 const systemProcesses: Promise<import("@phreshos/server").Process[]> = system.process.list()
