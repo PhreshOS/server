@@ -145,7 +145,7 @@ setTimeout(() => process.exit(0), 25)
 
   writeFileSync(
     join(consumer, "consumer.ts"),
-    `import { context, system, ClientEndpoint, ServerEndpoint, type Appearance, type PermissionChange, type ServerService, type SystemUploads, type Upload } from "@phreshos/server"
+    `import { context, system, ClientEndpoint, ServerEndpoint, type Appearance, type ServerService, type SystemUploads, type Upload } from "@phreshos/server"
 // @ts-expect-error the runtime object is named context
 import { current } from "@phreshos/server"
 

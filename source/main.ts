@@ -68,7 +68,6 @@ export type {
   OtherStat,
   AnswerOutcome,
   Permission,
-  PermissionChange,
   PermissionDefinition,
   PermissionDefinitions,
   PermissionInput,
