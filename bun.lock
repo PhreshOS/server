@@ -8,19 +8,19 @@
         "@the-link/messagepack": "^0.1.0",
       },
       "devDependencies": {
-        "@phreshos/core": "^0.1.38",
+        "@phreshos/core": "^0.1.39",
         "@types/node": "^26.2.0",
         "typescript": "^6.0.3",
       },
       "peerDependencies": {
-        "@phreshos/core": "^0.1.38",
+        "@phreshos/core": "^0.1.39",
       },
     },
   },
   "packages": {
     "@msgpack/msgpack": ["@msgpack/msgpack@3.1.3", "", {}, "sha512-47XIizs9XZXvuJgoaJUIE2lFoID8ugvc0jzSHP+Ptfk8nTbnR8g788wv48N03Kx0UkAv559HWRQ3yzOgzlRNUA=="],
 
-    "@phreshos/core": ["@phreshos/core@0.1.38", "", {}, "sha512-qEdGDLcSP0FyzBH9iDOdUsHgEtGnFfB1KKPTpuGHXEmKK8LIVYbBMc5EnjnhwPSTD2Z7fni1lGj5Y6rLrCxGhw=="],
+    "@phreshos/core": ["@phreshos/core@0.1.39", "", {}, "sha512-55f4qtb8aoXausgD+Kebq+xBCOhO3g+wdQlKmVb6YObWwiYxLWu+fJ+GIJzyNlRE6etD3EvXvbtsjMkrVTn28A=="],
 
     "@the-link/messagepack": ["@the-link/messagepack@0.1.0", "", { "dependencies": { "@msgpack/msgpack": "^3.1.3" } }, "sha512-Ktnd6sBPZKLCYl6wnxZjxnCzCBWv33k5iUXAs3hVueejj7vQ5wK5KQVPqaQmfeBFuyOo68KqtVaMxl7A1c/atg=="],
 
