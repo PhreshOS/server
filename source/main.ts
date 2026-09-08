@@ -117,6 +117,7 @@ export type {
   AppearanceEvents,
   AppearanceSource,
   AppearanceSurface,
+  AppearanceShadow,
   ThemedValue,
   WritableAppearance,
   WindowEvents,
