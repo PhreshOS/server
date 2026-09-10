@@ -47,11 +47,6 @@ class SystemHandle implements CoreSystem {
     yield* shell(command, { ...options, signal })
   }
 
-  public async forceCreateProgram(source: ProgramDefinition | string) {
-    const answer = await wire.request(["host-program-force-create", source]) as [ProgramRecord]
-    return program(answer[0])
-  }
-
   public service<ServiceEvents extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "server" }): ServerService<ServiceEvents, Fallback>
   public service<ServiceEvents extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "client" }): ClientService<ServiceEvents, Fallback>
   public service(key: ServiceKey): unknown { return prepareService(key) }
@@ -80,6 +75,11 @@ class SystemProgramHandle extends Events<SystemProgramEvents, never> implements 
 
   public async create(source: ProgramDefinition | string) {
     const answer = await wire.request(["host-program-create", source]) as [ProgramRecord]
+    return program(answer[0])
+  }
+
+  public async forceCreate(source: ProgramDefinition | string) {
+    const answer = await wire.request(["host-program-force-create", source]) as [ProgramRecord]
     return program(answer[0])
   }
 }

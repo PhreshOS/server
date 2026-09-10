@@ -101,6 +101,8 @@ assert.equal("serve" in system, false)
 assert.equal(typeof system.storage.text, "function")
 assert.equal(typeof system.storage.resolve, "function")
 assert.equal(typeof system.program.list, "function")
+assert.equal(typeof system.program.forceCreate, "function")
+assert.equal("forceCreateProgram" in system, false)
 assert.equal(typeof system.process.list, "function")
 assert.equal(typeof system.service, "function")
 assert.equal(typeof system.websocket, "function")
@@ -205,7 +207,7 @@ const systemProgram: Promise<Program | null> = system.program.find("counter")
 const systemProcesses: Promise<Process[]> = system.process.list()
 const systemProcess: Promise<Process | null> = system.process.find("process-identity")
 const shell: AsyncGenerator<ShellEvent, void, void> = system.shell("printf hello", { cwd: "/tmp" })
-const forcedProgram: Promise<Program> = system.forceCreateProgram("./phresh.config.ts")
+const forcedProgram: Promise<Program> = system.program.forceCreate("./phresh.config.ts")
 const geometry: Promise<void> = client.window.setGeometry({
   position: { x: "0/1", y: "0/1" },
   size: { width: "1/2", height: "1/2" }
