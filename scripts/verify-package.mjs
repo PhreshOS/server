@@ -10,6 +10,7 @@ import manifest from "../package.json" with { type: "json" }
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const temporary = mkdtempSync(join(tmpdir(), "phreshos-server-package-"))
 const cache = join(temporary, "npm-cache")
+const corePackage = process.env.PHRESHOS_CORE_PACKAGE ?? `@phreshos/core@${manifest.devDependencies["@phreshos/core"]}`
 
 assert.equal(
   manifest.peerDependencies["@phreshos/core"],
@@ -60,7 +61,7 @@ try {
       "--no-fund",
       "--no-package-lock",
       archive,
-      `@phreshos/core@${manifest.devDependencies["@phreshos/core"]}`
+      corePackage
     ],
     {
       cwd: consumer,
@@ -74,13 +75,14 @@ try {
     `import assert from "node:assert/strict"
 import * as core from "@phreshos/core"
 import * as sdk from "@phreshos/server"
-import { ClientEndpoint, ClientService, Endpoint, Process, Program, ServerEndpoint, ServerService, Service, context, system } from "@phreshos/server"
+import { context, system } from "@phreshos/server"
 
-assert.equal(Program, core.Program)
-assert.equal(Process, core.Process)
-assert.equal(Endpoint, core.Endpoint)
-assert.equal(ServerEndpoint, core.ServerEndpoint)
-assert.equal(ClientEndpoint, core.ClientEndpoint)
+const { ClientEndpoint, ClientService, Endpoint, Process, Program, ServerEndpoint, ServerService, Service } = core
+
+assert.deepEqual(Object.keys(sdk).sort(), ["context", "system"])
+for (const shared of ["Program", "Process", "Endpoint", "ServerEndpoint", "ClientEndpoint", "Service", "ServerService", "ClientService"]) {
+  assert.equal(shared in sdk, false)
+}
 assert.equal("current" in sdk, false)
 assert.equal(typeof context.process, "function")
 assert.equal(typeof context.name, "function")
@@ -145,9 +147,12 @@ setTimeout(() => process.exit(0), 25)
 
   writeFileSync(
     join(consumer, "consumer.ts"),
-    `import { context, system, ClientEndpoint, ServerEndpoint, type Appearance, type ServerService, type SystemUploads, type Upload } from "@phreshos/server"
+    `import { context, system } from "@phreshos/server"
+import { ClientEndpoint, ServerEndpoint, type Appearance, type Endpoint, type Process, type Program, type ServerService, type ShellEvent, type SystemUploads, type Upload } from "@phreshos/core"
 // @ts-expect-error the runtime object is named context
 import { current } from "@phreshos/server"
+// @ts-expect-error shared domains are imported from Core, not republished by an environment SDK
+import { Service } from "@phreshos/server"
 
 type CounterEvents = { change: number }
 
@@ -169,7 +174,7 @@ const counterAnswer: Promise<number> = counter.ask<number>("value")
 const serviceRole: Promise<boolean> = context.isService()
 const processName: Promise<string | null> = context.name()
 const stopAnswer = context.answer("outside", message => {
-  const sender: import("@phreshos/server").Endpoint | null = message.from
+  const sender: Endpoint | null = message.from
   if (sender) void sender.process()
   return sender ? "endpoint" : "outside"
 })
@@ -183,7 +188,7 @@ const assignedPermission: Promise<void> = program.permissions.set("all", true)
 const removedPermission: Promise<void> = program.permissions.delete("all")
 // @ts-expect-error permission names are closed by the Core catalog
 program.permissions.get("files")
-const shared: Promise<import("@phreshos/server").Process> = program.process.findOrCreate({
+const shared: Promise<Process> = program.process.findOrCreate({
   name: "shared-server",
   server: { service: true },
   client: false
@@ -195,12 +200,12 @@ const currentProcess = await context.process()
 const serverStart: Promise<void> = currentProcess.server.start({ service: true })
 // @ts-expect-error permissions belong to the Program, never one Process
 currentProcess.permissions
-const systemPrograms: Promise<import("@phreshos/server").Program[]> = system.program.list()
-const systemProgram: Promise<import("@phreshos/server").Program | null> = system.program.find("counter")
-const systemProcesses: Promise<import("@phreshos/server").Process[]> = system.process.list()
-const systemProcess: Promise<import("@phreshos/server").Process | null> = system.process.find("process-identity")
-const shell: AsyncGenerator<import("@phreshos/server").ShellEvent, void, void> = system.shell("printf hello", { cwd: "/tmp" })
-const forcedProgram: Promise<import("@phreshos/server").Program> = system.forceCreateProgram("./phresh.config.ts")
+const systemPrograms: Promise<Program[]> = system.program.list()
+const systemProgram: Promise<Program | null> = system.program.find("counter")
+const systemProcesses: Promise<Process[]> = system.process.list()
+const systemProcess: Promise<Process | null> = system.process.find("process-identity")
+const shell: AsyncGenerator<ShellEvent, void, void> = system.shell("printf hello", { cwd: "/tmp" })
+const forcedProgram: Promise<Program> = system.forceCreateProgram("./phresh.config.ts")
 const geometry: Promise<void> = client.window.setGeometry({
   position: { x: "0/1", y: "0/1" },
   size: { width: "1/2", height: "1/2" }

@@ -52,8 +52,8 @@ and published package shape.
 
 ## Related repositories
 
-- [`@phreshos/core`](https://github.com/PhreshOS/core) owns every shared
-  contract and domain class exposed here.
+- [`@phreshos/core`](https://github.com/PhreshOS/core) is the one public import
+  path for every shared contract and domain class implemented by these handles.
 - [`@phreshos/client`](https://github.com/PhreshOS/client) adapts the paired
   Client Endpoint boundary.
 - [`@phreshos/node`](https://github.com/PhreshOS/node) exposes the same System

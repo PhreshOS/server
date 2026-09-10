@@ -1,7 +1,6 @@
 import type {
   Answerer as CoreAnswerer,
   ServerContext as CoreServerContext,
-  ContextCapture as CoreContextCapture,
   ContextEvents as CoreContextEvents,
   ContextMessage as CoreContextMessage,
   EndpointLifecycle,
@@ -27,22 +26,19 @@ import Events from "./events.js"
 import wire from "./wire.js"
 
 /** The executing Process's canonical Client Endpoint handle. */
-export type ContextClient<Events extends object = {}, Fallback = unknown> = ClientEndpoint<Events, Fallback>
+type ContextClient<Events extends object = {}, Fallback = unknown> = ClientEndpoint<Events, Fallback>
 
 /** One value addressed to the current Server Endpoint, with a server-visible sender. */
-export type ContextMessage<Payload = unknown> = CoreContextMessage<Payload, Endpoint | null>
+type ContextMessage<Payload = unknown> = CoreContextMessage<Payload, Endpoint | null>
 
 /** Applies the server-visible sender envelope to known Context events. */
-export type ContextEvents<Events extends object> = CoreContextEvents<Events, Endpoint | null>
-
-/** Every event observable through the current Server Endpoint Context. */
-export type ContextCapture<Events extends object = {}> = CoreContextCapture<Events, Endpoint | null>
+type ContextEvents<Events extends object> = CoreContextEvents<Events, Endpoint | null>
 
 /** Handles one question addressed to the current Server Endpoint. */
-export type Answerer<Payload = unknown, Result = undefined> = CoreAnswerer<Payload, Result>
+type Answerer<Payload = unknown, Result = undefined> = CoreAnswerer<Payload, Result>
 
 /** Server runtime context: inbound communication, owner hierarchy, and paired Client Endpoint. */
-export type Context<Events extends object = {}> = CoreServerContext<Events>
+type Context<Events extends object = {}> = CoreServerContext<Events>
 
 const ClientEndpointBase = ClientEndpoint as unknown as new () => object
 
@@ -146,4 +142,4 @@ function contextMessage(value: unknown): ContextMessage {
 }
 
 /** Inbound events, owner hierarchy, and paired Client Endpoint for this Server runtime. */
-export const context: Context = new ServerContextHandle()
+export const context: CoreServerContext = new ServerContextHandle()
