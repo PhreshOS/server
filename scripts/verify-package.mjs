@@ -98,8 +98,8 @@ assert.equal(typeof system.uploads.path, "function")
 assert.equal(typeof system.uploads.stream, "function")
 assert.equal(typeof system.uploads.stat, "function")
 assert.equal("serve" in system, false)
-assert.equal(typeof system.storage.text, "function")
-assert.equal(typeof system.storage.resolve, "function")
+assert.equal(typeof system.storage.file, "function")
+assert.equal(typeof system.storage.navigate, "function")
 assert.equal(typeof system.program.list, "function")
 assert.equal(typeof system.program.forceCreate, "function")
 assert.equal("forceCreateProgram" in system, false)
@@ -150,7 +150,7 @@ setTimeout(() => process.exit(0), 25)
   writeFileSync(
     join(consumer, "consumer.ts"),
     `import { context, system } from "@phreshos/server"
-import { ClientEndpoint, ServerEndpoint, type Appearance, type Endpoint, type Process, type Program, type ServerService, type ShellEvent, type SystemUploads, type Upload } from "@phreshos/core"
+import { ClientEndpoint, ServerEndpoint, type Appearance, type Endpoint, type FileStat, type Process, type Program, type ServerService, type ShellEvent, type SystemUploads, type Upload, type WritableContent } from "@phreshos/core"
 // @ts-expect-error the runtime object is named context
 import { current } from "@phreshos/server"
 // @ts-expect-error shared domains are imported from Core, not republished by an environment SDK
@@ -162,10 +162,12 @@ const appearance: Promise<Appearance> = system.appearance.snapshot()
 const uploads: SystemUploads = system.uploads
 const uploadsPath: Promise<string> = uploads.path()
 const upload: Promise<Upload> = uploads.write("hello")
+const uploadStat: Promise<FileStat | null> = uploads.stat("00000000-0000-0000-0000-000000000000.txt")
+const uploadContent: WritableContent = new Uint16Array([1, 2])
 const uploadText: Promise<string> = uploads.text("00000000-0000-0000-0000-000000000000.txt")
-const homeFile: Promise<string> = system.storage.text("example.txt")
-// @ts-expect-error file reads require at least one path segment
-system.storage.text()
+const homeFile: Promise<string> = system.storage.file("example.txt").text()
+// @ts-expect-error selecting a file requires at least one path segment
+system.storage.file()
 const counter: ServerService<CounterEvents> = system.service<CounterEvents>({ program: "counter", process: "main", endpoint: "server" })
 const counterReady: Promise<void> = counter.waitReady(10_000)
 const clientService = system.service({ program: "counter", process: "main", endpoint: "client" })

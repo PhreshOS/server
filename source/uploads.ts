@@ -1,4 +1,4 @@
-import { isUploadFile, type SystemUploads, type Upload } from "@phreshos/core"
+import { isUploadFile, type FileStat, type SystemUploads, type Upload, type WritableContent } from "@phreshos/core"
 import { randomUUID } from "node:crypto"
 import { createReadStream, createWriteStream, mkdirSync } from "node:fs"
 import { rename, rm } from "node:fs/promises"
@@ -6,7 +6,7 @@ import { isAbsolute, join } from "node:path"
 import { Readable } from "node:stream"
 import { pipeline } from "node:stream/promises"
 import type { ReadableStream as NodeReadableStream } from "node:stream/web"
-import { content } from "./storage.js"
+import { content } from "./content.js"
 import wire from "./wire.js"
 
 /** Flat upload access performed locally by a Server Endpoint. */
@@ -17,7 +17,7 @@ class ServerUploads implements SystemUploads {
     return (await this.access()).root
   }
 
-  public async write(value: unknown): Promise<Upload> {
+  public async write(value: WritableContent): Promise<Upload> {
     const signal = active()
     const access = await this.access()
     const source = content(value)
@@ -53,7 +53,7 @@ class ServerUploads implements SystemUploads {
 
     if (!upload) throw new Error("The completed upload could not be described")
 
-    return upload
+    return { file, ...upload }
   }
 
   public async stream(file: string): Promise<ReadableStream<Uint8Array>> {
@@ -75,10 +75,10 @@ class ServerUploads implements SystemUploads {
     return JSON.parse(await this.text(file)) as Value
   }
 
-  public async stat(file: string): Promise<Upload | null> {
+  public async stat(file: string): Promise<FileStat | null> {
     active()
     requireFile(file)
-    const answer = await wire.request(["uploads", "stat", file]) as [Upload | null]
+    const answer = await wire.request(["uploads", "stat", file]) as [FileStat | null]
     return answer[0]
   }
 

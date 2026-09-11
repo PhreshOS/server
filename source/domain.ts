@@ -20,6 +20,7 @@ import {
   type ClientLaunch,
   type ServerLaunch,
   type Position,
+  type Storage,
   type ProgramIconSize,
   type ProgramCommandChunk,
   type ProgramProcess as CoreProgramProcess,
@@ -35,7 +36,7 @@ import { randomUUID } from "node:crypto"
 import Events, { stream } from "./events.js"
 import Deadline from "./deadline.js"
 import HandleRegistry from "./handle-registry.js"
-import { area, sql, store, type Storage } from "./storage.js"
+import { area, sql, store } from "./storage.js"
 import startup from "./startup.js"
 import { programPermissions } from "./permissions.js"
 import wire from "./wire.js"
