@@ -4,12 +4,12 @@ import { context } from "../source/main.js"
 context.client.lifecycle.subscribe("start", () => undefined)
 
 context.client.subscribe("unknown", message => void message)
-context.client.waitFor("unknown")
+context.client.wait("unknown")
 context.client.events("unknown")
 
 function declaredClient(client: ClientEndpoint<{ changed: number }>) {
   client.subscribe("changed", message => message.toFixed(0))
-  client.waitFor("changed")
+  client.wait("changed")
   client.events("changed")
   client.subscribe("unknown", message => void message)
 }

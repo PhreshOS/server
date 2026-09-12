@@ -318,7 +318,7 @@ class ProcessHandle extends ProcessBase {
   public readonly server: ServerEndpoint
   public readonly client: ClientEndpoint
   private readonly ownerProgram: Program
-  private readonly options: Record<string, string>
+  private readonly launchOptions: Readonly<Record<string, string>>
 
   public constructor(record: ProcessRecord, endpoints: { server?: ServerEndpoint, client?: ClientEndpoint } = {}) {
     super()
@@ -327,7 +327,7 @@ class ProcessHandle extends ProcessBase {
     this.name = record.name
     this.startedAt = new Date(record.startedAt)
     this.ownerProgram = program(record.program)
-    this.options = record.options
+    this.launchOptions = Object.freeze({ ...record.options })
     this.server = endpointHandle(this, "server", endpoints.server) as ServerEndpoint
     this.client = endpointHandle(this, "client", endpoints.client) as ClientEndpoint
 
@@ -342,10 +342,10 @@ class ProcessHandle extends ProcessBase {
     return answer[0] ? process(answer[0]) : null
   }
 
-  public async option(name: string) {
-    if (name in this.options) return this.options[name]
-    const answer = await wire.request(["option", this.address, name]) as [string | undefined]
-    return answer[0]
+  public options<Options extends object = Readonly<Record<string, string>>>(): Promise<Readonly<Options>>
+  public options<Option extends string = string>(name: string): Promise<Option | undefined>
+  public async options(name?: string) {
+    return name === undefined ? this.launchOptions : this.launchOptions[name]
   }
 
   public async exit() {
@@ -510,7 +510,6 @@ class WindowHandle extends Events {
   public async minimized() { return (await this.state()).minimized }
   public async front() { return (await this.state()).front }
   public async layer() { return (await this.state()).layer }
-  public async location() { return (await this.state()).location }
   public async move(position: Position) { await wire.request(["move", await this.target(), position]) }
   public async resize(size: Size) { await wire.request(["resize", await this.target(), size]) }
   public async setGeometry(geometry: WindowGeometry) { await wire.request(["setGeometry", await this.target(), geometry]) }
@@ -657,7 +656,7 @@ export function trafficMessage(value: unknown): TrafficMessage {
 export function bindEvents(target: object, events: Events) {
   Object.assign(target, {
     subscribe: events.subscribe.bind(events),
-    waitFor: events.waitFor.bind(events),
+    wait: events.wait.bind(events),
     events: events.events.bind(events)
   })
 }

@@ -65,6 +65,6 @@ function processRecord() {
     options: {},
     startedAt: new Date(0),
     server: { service: false },
-    client: { service: false, window: { title: "Program", position: { x: 0, y: 0 }, size: { width: 600, height: 500 }, minimized: false, front: false, layer: "window", location: "/" } }
+    client: { service: false, window: { title: "Program", position: { x: 0, y: 0 }, size: { width: 600, height: 500 }, minimized: false, front: false, layer: "window" } }
   }
 }

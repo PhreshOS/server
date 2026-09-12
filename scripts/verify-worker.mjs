@@ -15,7 +15,7 @@ import { parentPort } from "node:worker_threads"
 import { context, system } from ${JSON.stringify(sdk)}
 
 const [value, name, uploadsPath] = await Promise.all([
-  context.option("worker-test"),
+  context.options("worker-test"),
   context.name(),
   system.uploads.path()
 ])
@@ -78,7 +78,7 @@ function workerProcess() {
       server: { start: true, service: false },
       client: null
     },
-    options: {},
+    options: { "worker-test": "worker-value" },
     startedAt: new Date(0),
     server: { service: false },
     client: null

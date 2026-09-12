@@ -130,7 +130,7 @@ function serviceEvents(key: ServiceKey, scope: "lifecycle" | "events") {
 function bindEvents(target: object, events: Events) {
   Object.assign(target, {
     subscribe: events.subscribe.bind(events),
-    waitFor: events.waitFor.bind(events),
+    wait: events.wait.bind(events),
     events: events.events.bind(events)
   })
 }

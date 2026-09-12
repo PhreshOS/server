@@ -30,7 +30,7 @@ export default class Events<Vocabulary extends object = {}, Fallback = unknown> 
     return this.listenAll((event, message) => eventOrSubscriber({ event, message }))
   }) as Subscribable<Vocabulary, Fallback>["subscribe"]
 
-  public readonly waitFor: Subscribable<Vocabulary, Fallback>["waitFor"] = ((event: string, timeout = defaultTimeout): Promise<unknown> => {
+  public readonly wait: Subscribable<Vocabulary, Fallback>["wait"] = ((event: string, timeout = defaultTimeout): Promise<unknown> => {
     return new Promise((resolve, reject) => {
       let settled = false
       let stop: Cleanup = () => undefined
@@ -53,7 +53,7 @@ export default class Events<Vocabulary extends object = {}, Fallback = unknown> 
         error => finish(() => reject(error))
       )
     })
-  }) as Subscribable<Vocabulary, Fallback>["waitFor"]
+  }) as Subscribable<Vocabulary, Fallback>["wait"]
 
   public readonly events: Subscribable<Vocabulary, Fallback>["events"] = ((eventOrOptions: string | EventOptions = {}, namedOptions: EventOptions = {}) => {
     if (typeof eventOrOptions === "string") {
