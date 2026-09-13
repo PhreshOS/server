@@ -2,7 +2,9 @@ import {
   ClientService as CoreClientService,
   ServerService as CoreServerService,
   isServiceKey,
+  type EndpointLifecycleEvents,
   type EndpointLifecycle,
+  type Subscribable,
   type Service,
   type ServiceKey
 } from "@phreshos/core"
@@ -15,12 +17,12 @@ import wire from "./wire.js"
 const handles = new HandleRegistry()
 
 /** Server SDK handle for a Service provided by a Server Endpoint. */
-export class ServerService<Events extends object = {}, Fallback = unknown> extends CoreServerService<Events, Fallback> {
+export abstract class ServerService<Events extends object = {}, Fallback = unknown> extends CoreServerService<Events, Fallback> {
   protected constructor() { super() }
 }
 
 /** Server SDK handle for a Service provided by a Client Endpoint. */
-export class ClientService<Events extends object = {}, Fallback = unknown> extends CoreClientService<Events, Fallback> {
+export abstract class ClientService<Events extends object = {}, Fallback = unknown> extends CoreClientService<Events, Fallback> {
   protected constructor() { super() }
 }
 
@@ -28,7 +30,7 @@ class ServiceHandle {
   public readonly lifecycle: EndpointLifecycle
 
   public constructor(protected readonly key: ServiceKey) {
-    this.lifecycle = new Events(...serviceEvents(key, "lifecycle")) as unknown as EndpointLifecycle
+    this.lifecycle = new Events<EndpointLifecycleEvents, never>(...serviceEvents(key, "lifecycle"))
   }
 
   public readonly publish = (event: string, payload: unknown = undefined) => {
@@ -45,15 +47,21 @@ class ServiceHandle {
   }
 }
 
-class ServerHandler<EventsMap extends object = {}> extends ServerService<EventsMap> {
+class ServerHandler<EventsMap extends object = {}, Fallback = unknown> extends ServerService<EventsMap, Fallback> {
   public override readonly lifecycle: EndpointLifecycle
+  public override readonly subscribe: Subscribable<EventsMap, Fallback>["subscribe"]
+  public override readonly wait: Subscribable<EventsMap, Fallback>["wait"]
+  public override readonly events: Subscribable<EventsMap, Fallback>["events"]
   private readonly service: ServiceHandle
 
   public constructor(private readonly key: ServiceKey & { endpoint: "server" }) {
     super()
     this.service = new ServiceHandle(key)
     this.lifecycle = this.service.lifecycle
-    bindEvents(this, new Events(...serviceEvents(key, "events")))
+    const events = new Events<EventsMap, Fallback>(...serviceEvents(key, "events"))
+    this.subscribe = events.subscribe
+    this.wait = events.wait
+    this.events = events.events
   }
 
   public override readonly publish = (event: string, payload: unknown = undefined) => this.service.publish(event, payload)
@@ -84,15 +92,21 @@ class ServerHandler<EventsMap extends object = {}> extends ServerService<EventsM
   }
 }
 
-class ClientHandler<EventsMap extends object = {}> extends ClientService<EventsMap> {
+class ClientHandler<EventsMap extends object = {}, Fallback = unknown> extends ClientService<EventsMap, Fallback> {
   public override readonly lifecycle: EndpointLifecycle
+  public override readonly subscribe: Subscribable<EventsMap, Fallback>["subscribe"]
+  public override readonly wait: Subscribable<EventsMap, Fallback>["wait"]
+  public override readonly events: Subscribable<EventsMap, Fallback>["events"]
   private readonly service: ServiceHandle
 
   public constructor(key: ServiceKey & { endpoint: "client" }) {
     super()
     this.service = new ServiceHandle(key)
     this.lifecycle = this.service.lifecycle
-    bindEvents(this, new Events(...serviceEvents(key, "events")))
+    const events = new Events<EventsMap, Fallback>(...serviceEvents(key, "events"))
+    this.subscribe = events.subscribe
+    this.wait = events.wait
+    this.events = events.events
   }
 
   public override readonly publish = (event: string, payload: unknown = undefined) => this.service.publish(event, payload)
@@ -115,7 +129,7 @@ export function prepareService(key: ServiceKey): unknown {
 
   return handles.obtain(`service:${identity}`, () => normalized.endpoint === "server"
     ? new ServerHandler(normalized as ServiceKey & { endpoint: "server" })
-    : new ClientHandler(normalized as ServiceKey & { endpoint: "client" })) as unknown as Service
+    : new ClientHandler(normalized as ServiceKey & { endpoint: "client" }))
 }
 
 function serviceEvents(key: ServiceKey, scope: "lifecycle" | "events") {
@@ -125,12 +139,4 @@ function serviceEvents(key: ServiceKey, scope: "lifecycle" | "events") {
       if (typeof event === "string") listener(event, payload)
     })
   ] as const satisfies ConstructorParameters<typeof Events>
-}
-
-function bindEvents(target: object, events: Events) {
-  Object.assign(target, {
-    subscribe: events.subscribe.bind(events),
-    wait: events.wait.bind(events),
-    events: events.events.bind(events)
-  })
 }

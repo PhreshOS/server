@@ -71,6 +71,7 @@ function workerProcess() {
     program: {
       reference: "worker-program-reference",
       identity: "worker-program",
+      assetId: "worker-program-assets",
       name: "Worker Program",
       version: null,
       description: null,

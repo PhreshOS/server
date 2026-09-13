@@ -9,7 +9,6 @@ import type {
 import {
   ClientEndpoint,
   TrafficHandle,
-  bindEvents,
   endpoint,
   endpointLifecycle,
   endpointEvents,
@@ -40,20 +39,26 @@ type Answerer<Payload = unknown, Result = undefined> = CoreAnswerer<Payload, Res
 /** Server runtime context: inbound communication, owner hierarchy, and paired Client Endpoint. */
 type Context<Events extends object = {}> = CoreServerContext<Events>
 
-const ClientEndpointBase = ClientEndpoint as unknown as new () => object
-
-class ContextClientHandle extends ClientEndpointBase {
-  public readonly traffic = new TrafficHandle(null, "client") as unknown as ClientEndpoint["traffic"]
-  public readonly lifecycle = endpointLifecycle(currentAddress, "client") as unknown as EndpointLifecycle
+class ContextClientHandle extends ClientEndpoint {
+  public readonly subscribe: ClientEndpoint["subscribe"]
+  public readonly wait: ClientEndpoint["wait"]
+  public readonly events: ClientEndpoint["events"]
+  public readonly traffic = new TrafficHandle(null, "client")
+  public readonly lifecycle: EndpointLifecycle = endpointLifecycle(currentAddress, "client")
   public readonly window = window(currentAddress)
 
   public constructor(private readonly owner: () => Promise<Process>) {
     super()
-    bindEvents(this, endpointEvents(null, "client"))
+    const events = endpointEvents(null, "client")
+    this.subscribe = events.subscribe
+    this.wait = events.wait
+    this.events = events.events
   }
 
   public process() { return this.owner() }
-  public publish(event: string, payload: unknown = undefined) { wire.send("end-end", event, payload) }
+  public readonly publish: ClientEndpoint["publish"] = (event: string, payload: unknown = undefined) => {
+    wire.send("end-end", event, payload)
+  }
 
   public async exists() {
     const answer = await wire.request(["exists", "client"]) as [boolean]
@@ -89,7 +94,7 @@ function owner() {
   return ownerPromise
 }
 
-contextClient = new ContextClientHandle(owner) as unknown as ContextClient
+contextClient = new ContextClientHandle(owner)
 
 class ServerContextHandle extends Events<ContextEvents<{}>, ContextMessage> implements Context {
   public readonly client = contextClient

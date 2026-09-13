@@ -55,16 +55,17 @@ function processRecord() {
     program: {
       reference: "program-reference",
       identity: "program",
+      assetId: "program-assets",
       name: "Program",
       version: null,
       description: null,
       hasAgent: false,
       server: { start: true, service: false },
-      client: { start: true, service: false, title: null, size: null, position: null, layer: null, minimize: null }
+      client: { start: true, service: false, title: null, size: null, position: null, layer: null, minimize: null, maximize: null }
     },
     options: {},
     startedAt: new Date(0),
     server: { service: false },
-    client: { service: false, window: { title: "Program", position: { x: 0, y: 0 }, size: { width: 600, height: 500 }, minimized: false, front: false, layer: "window" } }
+    client: { service: false }
   }
 }

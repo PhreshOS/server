@@ -4,7 +4,9 @@ import {
   Process as CoreProcess,
   Program as CoreProgram,
   ServerEndpoint as CoreServerEndpoint,
-  parseClientPermissions,
+  parseEndpointReference,
+  parseProcessSnapshot,
+  parseProgramSnapshot,
   type AnswerCapture,
   type AnswerOutcome,
   type AnswerSubscriber,
@@ -12,8 +14,14 @@ import {
   type AskSubscriber,
   type Cleanup,
   type ClientDeclaration,
+  type EndpointReference as CoreEndpointReference,
+  type EndpointSnapshot,
+  type HandleAddress,
+  type ProcessSnapshot,
+  type ProgramSnapshot,
   type EndpointDeclaration,
   type EndpointLifecycle,
+  type EndpointLifecycleEvents,
   type EventOptions,
   type Exit,
   type Launch,
@@ -23,13 +31,18 @@ import {
   type Storage,
   type ProgramIconSize,
   type ProgramCommandChunk,
+  type ProgramEvents,
   type ProgramProcess as CoreProgramProcess,
+  type ProgramProcessEvents,
   type ProgramProcessRunEvent as CoreProgramProcessRunEvent,
   type ProgramProcessRunOptions as CoreProgramProcessRunOptions,
   type Size,
   type TrafficMessage,
+  type TrafficEvents,
+  type ProcessEvents,
   type Window as CoreWindow,
   type WindowGeometry,
+  type WindowEvents,
   type WindowState
 } from "@phreshos/core"
 import { randomUUID } from "node:crypto"
@@ -41,57 +54,15 @@ import startup from "./startup.js"
 import { programPermissions } from "./permissions.js"
 import wire from "./wire.js"
 
-export interface HandleAddress {
-  identity: string
-  reference: string
-}
+export type { HandleAddress }
 
-/** Client-safe Program data transported by the authoritative System. */
-export interface EndpointDeclarationRecord {
-  start: boolean
-  service: boolean
-}
+export type EndpointDeclarationRecord = EndpointDeclaration
+export type ClientDeclarationRecord = ClientDeclaration
 
-export interface ClientDeclarationRecord extends EndpointDeclarationRecord {
-  title: string | null
-  size: Size | null
-  position: Position | null
-  layer: ClientDeclaration["layer"]
-  minimize: boolean | null
-  permissions: ClientDeclaration["permissions"]
-}
-
-export interface ProgramRecord {
-  reference: string
-  identity: string
-  assetId: string
-  installed?: boolean
-  name: string
-  version: string | null
-  description: string | null
-  hasAgent: boolean
-  server: EndpointDeclarationRecord | null
-  client: ClientDeclarationRecord | null
-}
-
-/** Process data transported with every Endpoint reference. */
-export interface ProcessRecord {
-  reference: string
-  identity: string
-  name: string | null
-  program: ProgramRecord
-  options: Record<string, string>
-  startedAt: string | Date
-  server: EndpointRecord | null
-  client: EndpointRecord | null
-}
-
-export interface EndpointRecord { service: boolean }
-
-export interface EndpointReference {
-  kind: "server" | "client"
-  process: ProcessRecord
-}
+export type ProgramRecord = ProgramSnapshot
+export type ProcessRecord = ProcessSnapshot
+export type EndpointRecord = EndpointSnapshot
+export type EndpointReference = CoreEndpointReference
 
 export type WindowRecord = WindowState
 
@@ -108,12 +79,11 @@ export type ClientEndpoint<Events extends object = {}, Fallback = unknown> = Cor
 export type Window = CoreWindow
 
 const handles = new HandleRegistry()
-const ProgramBase = CoreProgram as unknown as new () => object
-const ProcessBase = CoreProcess as unknown as new () => object
-const ServerEndpointBase = CoreServerEndpoint as unknown as new () => object
-const ClientEndpointBase = CoreClientEndpoint as unknown as new () => object
 
-class ProgramHandle extends ProgramBase {
+class ProgramHandle extends CoreProgram {
+  public readonly subscribe: CoreProgram["subscribe"]
+  public readonly wait: CoreProgram["wait"]
+  public readonly events: CoreProgram["events"]
   public readonly identity: string
   public readonly reference: string
   public readonly data: Storage
@@ -138,9 +108,12 @@ class ProgramHandle extends ProgramBase {
     this.database = sql("database", this.address)
     this.startup = startup(this.address)
     this.permissions = programPermissions(this.address)
-    this.process = new ProgramProcessHandle(this.address, record.reference) as unknown as ProgramProcess
+    this.process = new ProgramProcessHandle(this.address, record.reference)
 
-    bindEvents(this, scoped("program-host", record.reference, programEvent))
+    const events = scoped<ProgramEvents, never>("program-host", record.reference, programEvent)
+    this.subscribe = events.subscribe
+    this.wait = events.wait
+    this.events = events.events
   }
 
   public get name() { return this.record.name }
@@ -148,12 +121,8 @@ class ProgramHandle extends ProgramBase {
   public get version() { return this.record.version }
   public get description() { return this.record.description }
   public get hasAgent() { return this.record.hasAgent }
-  public get server() {
-    return this.record.server ? declaration(this.record.server) : null
-  }
-  public get client() {
-    return this.record.client ? clientDeclaration(this.record.client) : null
-  }
+  public get server() { return this.record.server }
+  public get client() { return this.record.client }
   public get address(): HandleAddress { return { identity: this.identity, reference: this.reference } }
 
   public update(record: ProgramRecord) {
@@ -210,28 +179,16 @@ function programCommandChunk(value: unknown): ProgramCommandChunk {
   return Object.freeze({ stream: chunk.stream, text: chunk.text })
 }
 
-function declaration(record: EndpointDeclarationRecord): EndpointDeclaration {
-  return Object.freeze({
-    start: record.start,
-    service: record.service
-  })
-}
+class ProgramProcessHandle implements CoreProgramProcess {
+  public readonly subscribe: CoreProgramProcess["subscribe"]
+  public readonly wait: CoreProgramProcess["wait"]
+  public readonly events: CoreProgramProcess["events"]
 
-function clientDeclaration(record: ClientDeclarationRecord): ClientDeclaration {
-  return Object.freeze({
-    ...declaration(record),
-    title: record.title,
-    size: record.size,
-    position: record.position,
-    layer: record.layer,
-    minimize: record.minimize,
-    permissions: parseClientPermissions(record.permissions)
-  })
-}
-
-class ProgramProcessHandle {
   public constructor(private readonly address: HandleAddress, reference: string) {
-    bindEvents(this, scoped("program-process", reference, programProcessEvent))
+    const events = scoped<ProgramProcessEvents, never>("program-process", reference, programProcessEvent)
+    this.subscribe = events.subscribe
+    this.wait = events.wait
+    this.events = events.events
   }
 
   public async list() {
@@ -310,7 +267,10 @@ function chronological(processes: Process[]) {
   return processes.sort((left, right) => left.startedAt.getTime() - right.startedAt.getTime())
 }
 
-class ProcessHandle extends ProcessBase {
+class ProcessHandle extends CoreProcess {
+  public readonly subscribe: CoreProcess["subscribe"]
+  public readonly wait: CoreProcess["wait"]
+  public readonly events: CoreProcess["events"]
   public readonly identity: string
   public readonly reference: string
   public readonly name: string | null
@@ -331,7 +291,10 @@ class ProcessHandle extends ProcessBase {
     this.server = endpointHandle(this, "server", endpoints.server) as ServerEndpoint
     this.client = endpointHandle(this, "client", endpoints.client) as ClientEndpoint
 
-    bindEvents(this, scoped("process-host", record.reference, processEvent))
+    const events = scoped<ProcessEvents, never>("process-host", record.reference, processEvent)
+    this.subscribe = events.subscribe
+    this.wait = events.wait
+    this.events = events.events
   }
 
   public program() { return this.ownerProgram }
@@ -358,7 +321,8 @@ class ProcessHandle extends ProcessBase {
   }
 }
 
-export class TrafficHandle extends Events {
+export class TrafficHandle<EventsMap extends object = {}, Fallback = unknown>
+  extends Events<TrafficEvents<EventsMap>, TrafficMessage<Fallback>> {
   public constructor(protected readonly target: HandleAddress | null, protected readonly kind: "server" | "client") {
     super(
       (event, listener, impossible) => wire.observe(target, kind, "publish", event, value => {
@@ -370,59 +334,66 @@ export class TrafficHandle extends Events {
     )
   }
 
-  public subscribeAsks(subscriber: AskSubscriber): Cleanup {
+  public subscribeAsks<Payload = unknown>(subscriber: AskSubscriber<Payload>): Cleanup {
     return this.followAsks(subscriber)
   }
 
-  public asks(options?: EventOptions) {
-    return stream<AskCapture>((subscriber, impossible) => this.followAsks(subscriber, impossible), options)
+  public asks<Payload = unknown>(options?: EventOptions) {
+    return stream<AskCapture<Payload>>((subscriber, impossible) => this.followAsks(subscriber, impossible), options)
   }
 
-  private followAsks(subscriber: AskSubscriber, impossible?: (error: Error) => void): Cleanup {
+  private followAsks<Payload>(subscriber: AskSubscriber<Payload>, impossible?: (error: Error) => void): Cleanup {
     return wire.observe(this.target, this.kind, "ask", null, (event, questionId, message) => {
       if (typeof event !== "string" || typeof questionId !== "string") return
-      subscriber({ event, questionId, message: trafficMessage(message) as AskCapture["message"] })
+      subscriber({ event, questionId, message: trafficMessage(message) as AskCapture<Payload>["message"] })
     }, impossible)
   }
 }
 
-export class ServerTrafficHandle extends TrafficHandle {
-  public subscribeAnswers(subscriber: AnswerSubscriber): Cleanup {
+export class ServerTrafficHandle<EventsMap extends object = {}, Fallback = unknown>
+  extends TrafficHandle<EventsMap, Fallback> {
+  public subscribeAnswers<Result = unknown>(subscriber: AnswerSubscriber<Result>): Cleanup {
     return this.followAnswers(subscriber)
   }
 
-  public answers(options?: EventOptions) {
-    return stream<AnswerCapture>((subscriber, impossible) => this.followAnswers(subscriber, impossible), options)
+  public answers<Result = unknown>(options?: EventOptions) {
+    return stream<AnswerCapture<Result>>((subscriber, impossible) => this.followAnswers(subscriber, impossible), options)
   }
 
-  private followAnswers(subscriber: AnswerSubscriber, impossible?: (error: Error) => void): Cleanup {
+  private followAnswers<Result>(subscriber: AnswerSubscriber<Result>, impossible?: (error: Error) => void): Cleanup {
     return wire.observe(this.target, "server", "answer", null, (event, questionId, message) => {
       if (typeof event !== "string" || typeof questionId !== "string") return
 
-      const raw = message as { to?: EndpointReference, outcome?: AnswerOutcome }
+      const raw = message as { to?: EndpointReference | null, outcome?: AnswerOutcome<Result> }
       subscriber({
         event,
         questionId,
-        message: { to: endpoint(raw.to), outcome: raw.outcome as AnswerOutcome }
+        message: { to: raw.to === null ? null : endpoint(raw.to), outcome: raw.outcome as AnswerOutcome<Result> }
       })
     }, impossible)
   }
 }
 
-class ServerEndpointHandle extends ServerEndpointBase {
+class ServerEndpointHandle extends CoreServerEndpoint {
+  public readonly subscribe: CoreServerEndpoint["subscribe"]
+  public readonly wait: CoreServerEndpoint["wait"]
+  public readonly events: CoreServerEndpoint["events"]
   public readonly traffic: ServerTrafficHandle
   public readonly lifecycle: EndpointLifecycle
 
   public constructor(private readonly owner: ProcessHandle) {
     super()
     this.traffic = new ServerTrafficHandle(owner.address, "server")
-    this.lifecycle = endpointLifecycle(owner.address, "server") as unknown as EndpointLifecycle
-    bindEvents(this, endpointEvents(owner.address, "server"))
+    this.lifecycle = endpointLifecycle(owner.address, "server")
+    const events = endpointEvents(owner.address, "server")
+    this.subscribe = events.subscribe
+    this.wait = events.wait
+    this.events = events.events
   }
 
   public async process() { return this.owner }
 
-  public publish(event: string, payload: unknown = undefined) {
+  public readonly publish: CoreServerEndpoint["publish"] = (event: string, payload: unknown = undefined) => {
     wire.send("end-host", "send", this.owner.address, "server", event, payload)
   }
 
@@ -463,7 +434,10 @@ class ServerEndpointHandle extends ServerEndpointBase {
   }
 }
 
-class ClientEndpointHandle extends ClientEndpointBase {
+class ClientEndpointHandle extends CoreClientEndpoint {
+  public readonly subscribe: CoreClientEndpoint["subscribe"]
+  public readonly wait: CoreClientEndpoint["wait"]
+  public readonly events: CoreClientEndpoint["events"]
   public readonly traffic: TrafficHandle
   public readonly lifecycle: EndpointLifecycle
   public readonly window: Window
@@ -471,13 +445,18 @@ class ClientEndpointHandle extends ClientEndpointBase {
   public constructor(private readonly owner: ProcessHandle) {
     super()
     this.traffic = new TrafficHandle(owner.address, "client")
-    this.lifecycle = endpointLifecycle(owner.address, "client") as unknown as EndpointLifecycle
+    this.lifecycle = endpointLifecycle(owner.address, "client")
     this.window = window(async () => owner.address)
-    bindEvents(this, endpointEvents(owner.address, "client"))
+    const events = endpointEvents(owner.address, "client")
+    this.subscribe = events.subscribe
+    this.wait = events.wait
+    this.events = events.events
   }
 
   public async process() { return this.owner }
-  public publish(event: string, payload: unknown = undefined) { wire.send("end-host", "send", this.owner.address, "client", event, payload) }
+  public readonly publish: CoreClientEndpoint["publish"] = (event: string, payload: unknown = undefined) => {
+    wire.send("end-host", "send", this.owner.address, "client", event, payload)
+  }
 
   public async exists() {
     const answer = await wire.request(["exists", "client", this.owner.address]) as [boolean]
@@ -494,7 +473,7 @@ class ClientEndpointHandle extends ClientEndpointBase {
 
 }
 
-class WindowHandle extends Events {
+class WindowHandle extends Events<WindowEvents, never> implements CoreWindow {
   public constructor(private readonly target: WindowTarget) {
     super(...deferredScoped("host-end", target, (_event, values) => values[0]))
   }
@@ -508,12 +487,14 @@ class WindowHandle extends Events {
   public async position() { return (await this.state()).position }
   public async size() { return (await this.state()).size }
   public async minimized() { return (await this.state()).minimized }
+  public async maximized() { return (await this.state()).maximized }
   public async front() { return (await this.state()).front }
   public async layer() { return (await this.state()).layer }
   public async move(position: Position) { await wire.request(["move", await this.target(), position]) }
   public async resize(size: Size) { await wire.request(["resize", await this.target(), size]) }
   public async setGeometry(geometry: WindowGeometry) { await wire.request(["setGeometry", await this.target(), geometry]) }
   public async minimize(minimized = true) { await wire.request(["minimize", await this.target(), minimized]) }
+  public async maximize(maximized = true) { await wire.request(["maximize", await this.target(), maximized]) }
   public async changeTitle(title: string) { await wire.request(["changeTitle", await this.target(), title]) }
   public async raise() { await wire.request(["raise", await this.target()]) }
 }
@@ -543,7 +524,7 @@ function deferredScoped(route: string, target: WindowTarget, convert: (event: st
 }
 
 function windowEvent(event: string) {
-  return event === "move" || event === "resize" || event === "geometry" || event === "minimize" || event === "changeTitle" || event === "front"
+  return event === "move" || event === "resize" || event === "geometry" || event === "minimize" || event === "maximize" || event === "changeTitle" || event === "front"
 }
 
 function deferred(target: WindowTarget, register: (subject: string) => Cleanup, impossible?: (error: Error) => void): Cleanup {
@@ -564,8 +545,8 @@ function deferred(target: WindowTarget, register: (subject: string) => Cleanup, 
   }
 }
 
-export function scoped(route: string, subject: string | null, convert: (event: string, values: unknown[]) => unknown) {
-  return new Events(
+export function scoped<Definitions extends object = {}, Fallback = unknown>(route: string, subject: string | null, convert: (event: string, values: unknown[]) => unknown) {
+  return new Events<Definitions, Fallback>(
     (event, listener, impossible) => wire.on(route, event, (...values) => {
       const message = unscoped(subject, values)
       if (message) listener(convert(event, message))
@@ -590,7 +571,7 @@ export function endpointEvents(target: HandleAddress | null, half: "server" | "c
 
 /** Start and stop transitions belonging directly to one permanent Endpoint. */
 export function endpointLifecycle(target: LifecycleTarget, half: "server" | "client") {
-  return new Events(
+  return new Events<EndpointLifecycleEvents, never>(
     (event, listener, impossible) => resolved(target, subject => wire.on(
       "process-host",
       endpointLifecycleEvent(event),
@@ -625,8 +606,8 @@ function unscoped(subject: string | null, values: unknown[]) {
 }
 
 function programProcessEvent(event: string, values: unknown[]): unknown {
-  if (event === "create") return process(values[0] as ProcessRecord)
-  if (event === "exit") return { process: process(values[0] as ProcessRecord), ...exit(values[1], values[2]) }
+  if (event === "create") return process(values[0])
+  if (event === "exit") return { process: process(values[0]), ...exit(values[1], values[2]) }
   return undefined
 }
 
@@ -649,31 +630,25 @@ function numberOrNull(value: unknown) { return typeof value === "number" ? value
 function stringOrNull(value: unknown) { return typeof value === "string" ? value : null }
 
 export function trafficMessage(value: unknown): TrafficMessage {
-  const raw = value as { to?: EndpointReference, payload?: unknown }
-  return { to: endpoint(raw.to), payload: raw.payload }
+  const raw = value as { to?: EndpointReference | null, payload?: unknown }
+  return { to: raw.to === null ? null : endpoint(raw.to), payload: raw.payload }
 }
 
-export function bindEvents(target: object, events: Events) {
-  Object.assign(target, {
-    subscribe: events.subscribe.bind(events),
-    wait: events.wait.bind(events),
-    events: events.events.bind(events)
-  })
-}
-
-export function program(record: ProgramRecord): Program {
+export function program(value: unknown): Program {
+  const record = parseProgramSnapshot(value)
   const handle = handles.obtain(`program:${record.reference}`, () => new ProgramHandle(record))
   handle.update(record)
-  return handle as unknown as Program
+  return handle
 }
 
-export function process(record: ProcessRecord, endpoints: { server?: ServerEndpoint, client?: ClientEndpoint } = {}): Process {
-  return handles.obtain(`process:${record.reference}`, () => new ProcessHandle(record, endpoints)) as unknown as Process
+export function process(value: unknown, endpoints: { server?: ServerEndpoint, client?: ClientEndpoint } = {}): Process {
+  const record = parseProcessSnapshot(value)
+  return handles.obtain(`process:${record.reference}`, () => new ProcessHandle(record, endpoints))
 }
 
-export function endpoint(reference: EndpointReference | undefined): Endpoint {
-  if (!reference) throw new Error("The boundary returned an invalid Endpoint reference")
-  const owner = process(reference.process) as unknown as ProcessHandle
+export function endpoint(value: unknown): Endpoint {
+  const reference = parseEndpointReference(value)
+  const owner = process(reference.process)
   return reference.kind === "server" ? owner.server : owner.client
 }
 
@@ -688,7 +663,7 @@ function endpointHandle(owner: ProcessHandle, kind: "server" | "client", preferr
 }
 
 export function window(target: WindowTarget): Window {
-  return new WindowHandle(target) as unknown as Window
+  return new WindowHandle(target)
 }
 
 /** Runtime constructor used to identify and type Server-visible Program handles. */

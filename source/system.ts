@@ -24,7 +24,7 @@ import wire from "./wire.js"
 import { prepareService } from "./service.js"
 import { systemStorage } from "./storage.js"
 import shell from "./shell.js"
-import websocket from "./websocket.js"
+import network from "./network.js"
 
 class SystemHandle implements CoreSystem {
   public readonly storage = systemStorage()
@@ -32,15 +32,7 @@ class SystemHandle implements CoreSystem {
   public readonly program: CoreSystemProgram = new SystemProgramHandle()
   public readonly process: CoreSystemProcess = new SystemProcessHandle()
   public readonly uploads = uploads
-
-  public async fetch(input: RequestInfo | URL, init?: RequestInit) {
-    const request = new Request(input, init)
-    return await fetch(request, { signal: AbortSignal.any([request.signal, wire.signal]) })
-  }
-
-  public websocket(url: string | URL, protocols?: string | string[]) {
-    return websocket(url, protocols, wire.signal)
-  }
+  public readonly network = network(() => wire.signal)
 
   public async *shell(command: string, options: ShellOptions = {}) {
     const signal = options.signal ? AbortSignal.any([options.signal, wire.signal]) : wire.signal
@@ -107,11 +99,11 @@ class SystemProcessHandle extends Events<SystemProcessEvents, never> implements 
 
 function systemProcessEvent(event: string, values: unknown[]): unknown {
   if (event === "create") {
-    return process(values[1] as ProcessRecord)
+    return process(values[1])
   }
 
   if (event === "exit") {
-    return { process: process(values[1] as ProcessRecord), ...exit(values[2], values[3]) }
+    return { process: process(values[1]), ...exit(values[2], values[3]) }
   }
 
   return values[0]
@@ -119,11 +111,11 @@ function systemProcessEvent(event: string, values: unknown[]): unknown {
 
 function systemProgramEvent(event: string, values: unknown[]): unknown {
   if (event === "create" || event === "forget" || event === "install") {
-    return program(values[1] as ProgramRecord)
+    return program(values[1])
   }
 
   if (event === "uninstall") {
-    return { program: program(values[1] as ProgramRecord), everything: values[2] === true }
+    return { program: program(values[1]), everything: values[2] === true }
   }
 
   return values[0]

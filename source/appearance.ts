@@ -1,4 +1,4 @@
-import { createAppearanceSnapshot, type Appearance, type AppearanceEvents, type WritableAppearance } from "@phreshos/core"
+import { parseAppearance, type Appearance, type AppearanceEvents, type WritableAppearance } from "@phreshos/core"
 import Events from "./events.js"
 import wire from "./wire.js"
 
@@ -7,17 +7,17 @@ export default class ServerAppearance extends Events<AppearanceEvents, never> im
   public constructor() {
     super(
       (event, listener, impossible) => wire.on("host-appearance", event, value => {
-        listener(createAppearanceSnapshot(value as Appearance))
+        listener(parseAppearance(value))
       }, null, impossible),
       observer => wire.onAll("host-appearance", (event, value) => {
-        if (typeof event === "string") observer(event, createAppearanceSnapshot(value as Appearance))
+        if (typeof event === "string") observer(event, parseAppearance(value))
       })
     )
   }
 
   public async snapshot() {
-    const [appearance] = await wire.request(["appearance"]) as [Appearance]
-    return createAppearanceSnapshot(appearance)
+    const [appearance] = await wire.request(["appearance"]) as [unknown]
+    return parseAppearance(appearance)
   }
 
   public readonly update = async (appearance: Appearance) => {

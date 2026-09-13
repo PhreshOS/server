@@ -8,7 +8,7 @@ import {
 import type { HandleAddress } from "./domain.js"
 import wire from "./wire.js"
 
-/** Bind authoritative stored grants to one exact Program handle. */
+/** Bind authoritative permission state to one exact Program handle. */
 export function programPermissions(program: HandleAddress): ProgramPermissions {
   const operate = <Name extends PermissionName>(operation: "all" | "get" | "allows" | "set" | "delete", name?: Name, permission?: PermissionInput<Name>) => (
     wire.request(["program-permissions", program, operation, name, permission])

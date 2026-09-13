@@ -1,8 +1,10 @@
-import type {
-  Capture,
-  Cleanup,
-  EventOptions,
-  Subscribable
+import {
+  subscribableDefinition,
+  type Capture,
+  type Cleanup,
+  type EventOptions,
+  type Subscribable,
+  type SubscribableDefinition
 } from "@phreshos/core"
 
 export const defaultTimeout = 10_000
@@ -19,6 +21,7 @@ type Register<Message> = (listener: (message: Message) => unknown, impossible?: 
  * callbacks remain here, inside the endpoint that requested the data.
  */
 export default class Events<Vocabulary extends object = {}, Fallback = unknown> implements Subscribable<Vocabulary, Fallback> {
+  public declare readonly [subscribableDefinition]?: SubscribableDefinition<Vocabulary, Fallback>
 
   public constructor(
     private readonly listen: (event: string, listener: Listener, impossible?: Failure) => Cleanup,
