@@ -50,6 +50,12 @@ bun run verify
 `verify` checks the types, both execution adapters, System operations, build,
 and published package shape.
 
+`check` performs static checks, `build` creates distributable output, and `test`
+runs Vitest assertions from `tests/`. Run `build` before testing built artifacts.
+`verify` runs `check`, `build`, and `test` in order. Operational tooling belongs
+in `scripts/`; tests and their fixtures belong in `tests/`. Verification uses
+the committed dependency graph without local package substitutions.
+
 ## Related repositories
 
 - [`@phreshos/core`](https://github.com/PhreshOS/core) is the one public import
