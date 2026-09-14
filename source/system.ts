@@ -115,7 +115,7 @@ function systemProgramEvent(event: string, values: unknown[]): unknown {
   }
 
   if (event === "uninstall") {
-    return { program: program(values[1]), everything: values[2] === true }
+    return { program: program(values[1]), purge: values[2] === true }
   }
 
   return values[0]
