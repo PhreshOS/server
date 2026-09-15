@@ -1,10 +1,17 @@
 import {
+  parseSessionEndSnapshot,
+  type Connection,
   type ServiceKey,
   type System as CoreSystem,
+  type SystemConnection,
+  type SystemConnectionEvents,
   type SystemProcess as CoreSystemProcess,
   type SystemProcessEvents,
   type SystemProgram as CoreSystemProgram,
   type SystemProgramEvents,
+  type SystemSession,
+  type SystemSessionEvents,
+  type Session,
   type ProgramDefinition,
   type ShellOptions,
   type WritableAppearance
@@ -25,12 +32,15 @@ import { prepareService } from "./service.js"
 import { systemStorage } from "./storage.js"
 import shell from "./shell.js"
 import network from "./network.js"
+import { connection, session } from "./authentication.js"
 
 class SystemHandle implements CoreSystem {
   public readonly storage = systemStorage()
   public readonly appearance: WritableAppearance = new ServerAppearance()
   public readonly program: CoreSystemProgram = new SystemProgramHandle()
   public readonly process: CoreSystemProcess = new SystemProcessHandle()
+  public readonly connection: SystemConnection = new SystemConnectionHandle()
+  public readonly session: SystemSession = new SystemSessionHandle()
   public readonly uploads = uploads
   public readonly network = network(() => wire.signal)
 
@@ -97,6 +107,48 @@ class SystemProcessHandle extends Events<SystemProcessEvents, never> implements 
   }
 }
 
+class SystemConnectionHandle extends Events<SystemConnectionEvents, never> implements SystemConnection {
+  public constructor() {
+    super(
+      (event, listener, impossible) => wire.on("host-connection", event, (...values) => listener(systemConnectionEvent(event, values)), null, impossible),
+      observer => wire.onAll("host-connection", (event, ...values) => {
+        if (typeof event === "string") observer(event, systemConnectionEvent(event, values))
+      })
+    )
+  }
+
+  public async list(): Promise<Connection[]> {
+    const [snapshots] = await wire.request(["host-connection-list"]) as [unknown[]]
+    return snapshots.map(connection)
+  }
+
+  public async find(identity: string): Promise<Connection | null> {
+    const [snapshot] = await wire.request(["host-connection-find", identity]) as [unknown]
+    return snapshot === null ? null : connection(snapshot)
+  }
+}
+
+class SystemSessionHandle extends Events<SystemSessionEvents, never> implements SystemSession {
+  public constructor() {
+    super(
+      (event, listener, impossible) => wire.on("host-session", event, (...values) => listener(systemSessionEvent(event, values)), null, impossible),
+      observer => wire.onAll("host-session", (event, ...values) => {
+        if (typeof event === "string") observer(event, systemSessionEvent(event, values))
+      })
+    )
+  }
+
+  public async list(): Promise<Session[]> {
+    const [snapshots] = await wire.request(["host-session-list"]) as [unknown[]]
+    return snapshots.map(session)
+  }
+
+  public async find(identity: string): Promise<Session | null> {
+    const [snapshot] = await wire.request(["host-session-find", identity]) as [unknown]
+    return snapshot === null ? null : session(snapshot)
+  }
+}
+
 function systemProcessEvent(event: string, values: unknown[]): unknown {
   if (event === "create") {
     return process(values[1])
@@ -119,6 +171,15 @@ function systemProgramEvent(event: string, values: unknown[]): unknown {
   }
 
   return values[0]
+}
+
+function systemConnectionEvent(_event: string, values: unknown[]) {
+  return connection(values[1])
+}
+
+function systemSessionEvent(event: string, values: unknown[]) {
+  const handle = session(values[1])
+  return event === "end" ? { session: handle, reason: parseSessionEndSnapshot({ ...(values[1] as object), reason: values[2] }).reason } : handle
 }
 
 /** Authoritative System capabilities for the currently executing Server Endpoint. */

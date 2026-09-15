@@ -197,7 +197,7 @@ test("package contract", async () => {
   const removedPermission: Promise<void> = program.permissions.delete("all")
   // @ts-expect-error permission names are closed by the Core catalog
   program.permissions.get("files")
-  const shared: Promise<Process> = program.process.findOrCreate({
+  const shared: Promise<Process> = program.findOrCreateProcess({
     name: "shared-server",
     server: { service: true },
     client: false

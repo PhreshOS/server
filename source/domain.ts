@@ -34,8 +34,6 @@ import {
   type ProgramInstallOptions,
   type ProgramUninstallOptions,
   type ProgramEvents,
-  type ProgramProcess as CoreProgramProcess,
-  type ProgramProcessEvents,
   type ProgramProcessRunEvent as CoreProgramProcessRunEvent,
   type ProgramProcessRunOptions as CoreProgramProcessRunOptions,
   type Size,
@@ -70,7 +68,6 @@ export type EndpointReference = CoreEndpointReference
 export type WindowRecord = WindowState
 
 export type Program = CoreProgram
-export type ProgramProcess = CoreProgramProcess
 export type ProgramProcessRunEvent = CoreProgramProcessRunEvent
 export type ProgramProcessRunOptions = CoreProgramProcessRunOptions
 export type Process = CoreProcess
@@ -96,7 +93,6 @@ class ProgramHandle extends CoreProgram {
   public readonly database
   public readonly startup
   public readonly launch
-  public readonly process: ProgramProcess
   public readonly permissions
   private record: ProgramRecord
 
@@ -113,8 +109,6 @@ class ProgramHandle extends CoreProgram {
     this.startup = startup(this.address)
     this.launch = launch(this.address)
     this.permissions = programPermissions(this.address)
-    this.process = new ProgramProcessHandle(this.address, record.reference)
-
     const events = scoped<ProgramEvents, never>("program-host", record.reference, programEvent)
     this.subscribe = events.subscribe
     this.wait = events.wait
@@ -151,6 +145,45 @@ class ProgramHandle extends CoreProgram {
     return answer[0]
   }
 
+  public async processes() {
+    const answer = await wire.request(["program-processes", this.address]) as [ProcessRecord[]]
+    return answer[0].map(record => process(record))
+  }
+
+  public async firstProcess() {
+    return chronological(await this.processes())[0] ?? null
+  }
+
+  public async lastProcess() {
+    return chronological(await this.processes()).at(-1) ?? null
+  }
+
+  public async findProcess(identityOrName: string) {
+    const answer = await wire.request(["program-find-process", this.address, identityOrName]) as [ProcessRecord | null]
+    return answer[0] ? process(answer[0]) : null
+  }
+
+  public async createProcess(launch: Launch = {}) {
+    const answer = await wire.request(["program-create-process", this.address, launch]) as [ProcessRecord]
+    return process(answer[0])
+  }
+
+  public async findOrCreateProcess(launch: Launch & Readonly<{ name: string }>) {
+    const answer = await wire.request(["program-find-or-create-process", this.address, launch]) as [ProcessRecord]
+    return process(answer[0])
+  }
+
+  public async exitProcesses() {
+    const answer = await wire.request(["program-exit-processes", this.address]) as [string[]]
+    return answer[0]
+  }
+
+  public async *runProcess(launch: Launch = {}, options: ProgramProcessRunOptions = {}) {
+    for await (const value of wire.stream(["run", this.address, launch], undefined, options.signal)) {
+      yield processRunEvent(value)
+    }
+  }
+
   public async *install(options: ProgramInstallOptions = {}) {
     for await (const value of wire.stream(["install", this.address, options])) {
       yield programCommandChunk(value)
@@ -177,58 +210,6 @@ function programCommandChunk(value: unknown): ProgramCommandChunk {
   }
 
   return Object.freeze({ stream: chunk.stream, text: chunk.text })
-}
-
-class ProgramProcessHandle implements CoreProgramProcess {
-  public readonly subscribe: CoreProgramProcess["subscribe"]
-  public readonly wait: CoreProgramProcess["wait"]
-  public readonly events: CoreProgramProcess["events"]
-
-  public constructor(private readonly address: HandleAddress, reference: string) {
-    const events = scoped<ProgramProcessEvents, never>("program-process", reference, programProcessEvent)
-    this.subscribe = events.subscribe
-    this.wait = events.wait
-    this.events = events.events
-  }
-
-  public async list() {
-    const answer = await wire.request(["program-process-list", this.address]) as [ProcessRecord[]]
-    return answer[0].map(record => process(record))
-  }
-
-  public async first() {
-    return chronological(await this.list())[0] ?? null
-  }
-
-  public async last() {
-    return chronological(await this.list()).at(-1) ?? null
-  }
-
-  public async find(identityOrName: string) {
-    const answer = await wire.request(["program-process-find", this.address, identityOrName]) as [ProcessRecord | null]
-    return answer[0] ? process(answer[0]) : null
-  }
-
-  public async create(launch: Launch = {}) {
-    const answer = await wire.request(["program-process-create", this.address, launch]) as [ProcessRecord]
-    return process(answer[0])
-  }
-
-  public async *run(launch: Launch = {}, options: ProgramProcessRunOptions = {}) {
-    for await (const value of wire.stream(["run", this.address, launch], undefined, options.signal)) {
-      yield processRunEvent(value)
-    }
-  }
-
-  public async findOrCreate(launch: Launch & Readonly<{ name: string }>) {
-    const answer = await wire.request(["program-process-find-or-create", this.address, launch]) as [ProcessRecord]
-    return process(answer[0])
-  }
-
-  public async exitAll() {
-    const answer = await wire.request(["program-process-exit-all", this.address]) as [string[]]
-    return answer[0]
-  }
 }
 
 function processRunEvent(value: unknown): ProgramProcessRunEvent {
@@ -605,14 +586,10 @@ function unscoped(subject: string | null, values: unknown[]) {
   return values[0] === subject ? values.slice(1) : null
 }
 
-function programProcessEvent(event: string, values: unknown[]): unknown {
-  if (event === "create") return process(values[0])
-  if (event === "exit") return { process: process(values[0]), ...exit(values[1], values[2]) }
-  return undefined
-}
-
 function programEvent(event: string, values: unknown[]): unknown {
-  if (event === "uninstall") return values[0] === true
+  if (event === "processCreate") return process(values[0])
+  if (event === "processExit") return { process: process(values[0]), ...exit(values[1], values[2]) }
+  if (event === "uninstall") return { purge: values[0] === true }
   return undefined
 }
 
