@@ -8,7 +8,6 @@ import {
   type Service,
   type ServiceKey
 } from "@phreshos/core"
-import { randomUUID } from "node:crypto"
 import Deadline from "./deadline.js"
 import Events from "./events.js"
 import HandleRegistry from "./handle-registry.js"
@@ -81,8 +80,8 @@ class ServerHandler<EventsMap extends object = {}, Fallback = unknown> extends S
 
   private async askWithin<Answer>(deadline: Deadline, event: string, payload: unknown) {
     const identity = await wire.identity()
-    const address = `server:${identity.process}:${randomUUID()}`
-    const question = randomUUID()
+    const address = `server:${identity.process}:${crypto.randomUUID()}`
+    const question = crypto.randomUUID()
     const waiting = wire.expectWithin(address, deadline)
 
     wire.send("end-host", "service-ask", this.key, address, question, event, payload)

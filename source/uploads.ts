@@ -1,123 +1,67 @@
 import { isUploadFile, type FileStat, type SystemUploads, type Upload, type WritableContent } from "@phreshos/core"
-import { randomUUID } from "node:crypto"
-import { createReadStream, createWriteStream, mkdirSync } from "node:fs"
-import { rename, rm } from "node:fs/promises"
-import { isAbsolute, join } from "node:path"
-import { Readable } from "node:stream"
-import { pipeline } from "node:stream/promises"
-import type { ReadableStream as NodeReadableStream } from "node:stream/web"
 import { content } from "./content.js"
 import wire from "./wire.js"
 
-/** Flat upload access performed locally by a Server Endpoint. */
+/** Flat upload access transported through the Server boundary. */
 class ServerUploads implements SystemUploads {
-  private accessPromise: Promise<Access> | null = null
-
   public async path() {
-    return (await this.access()).root
+    const [path] = await wire.request(["uploads", "path"]) as [unknown]
+    if (typeof path !== "string" || !path) throw new Error("The System returned an invalid uploads path")
+    return path
   }
 
   public async write(value: WritableContent): Promise<Upload> {
-    const signal = active()
-    const access = await this.access()
     const source = content(value)
-    const identity = randomUUID()
-    const file = `${identity}.${source.extension}`
-    const temporary = join(access.root, `.${identity}.uploading`)
-    const destination = join(access.root, file)
-    let size = 0
-
-    mkdirSync(access.root, { recursive: true })
-
-    try {
-      await pipeline(
-        Readable.fromWeb(source.stream as unknown as NodeReadableStream<Uint8Array>),
-        async function* (chunks: AsyncIterable<Uint8Array>) {
-          for await (const chunk of chunks) {
-            size += chunk.byteLength
-            if (size > access.limit) throw new Error(`The upload exceeds ${access.limit / 1024 / 1024 / 1024} GB`)
-            yield chunk
-          }
-        },
-        createWriteStream(temporary, { flags: "wx" }),
-        { signal }
-      )
-      signal.throwIfAborted()
-      await rename(temporary, destination)
-    } catch (error) {
-      await rm(temporary, { force: true }).catch(() => undefined)
-      throw error
-    }
-
-    const upload = await this.stat(file)
-
-    if (!upload) throw new Error("The completed upload could not be described")
-
-    return { file, ...upload }
+    const [upload] = await wire.request([
+      "uploads",
+      "write",
+      await collect(source.stream),
+      { extension: source.extension, type: source.type }
+    ]) as [Upload]
+    return upload
   }
 
   public async stream(file: string): Promise<ReadableStream<Uint8Array>> {
-    const signal = active()
     requireFile(file)
-    const { root } = await this.access()
-    return Readable.toWeb(createReadStream(join(root, file), { signal })) as unknown as ReadableStream<Uint8Array>
+    const iterator = wire.stream(["uploads-stream", file])
+    return new ReadableStream({
+      async pull(controller) {
+        const next = await iterator.next()
+        if (next.done) controller.close()
+        else controller.enqueue(bytes(next.value))
+      },
+      async cancel() { await iterator.return?.() }
+    })
   }
 
-  public async bytes(file: string) {
-    return new Uint8Array(await new Response(await this.stream(file)).arrayBuffer())
-  }
-
-  public async text(file: string) {
-    return new Response(await this.stream(file)).text()
-  }
-
-  public async json<Value>(file: string) {
-    return JSON.parse(await this.text(file)) as Value
-  }
-
+  public async bytes(file: string) { return collect(await this.stream(file)) }
+  public async text(file: string) { return new TextDecoder().decode(await this.bytes(file)) }
+  public async json<Value>(file: string) { return JSON.parse(await this.text(file)) as Value }
   public async stat(file: string): Promise<FileStat | null> {
-    active()
     requireFile(file)
-    const answer = await wire.request(["uploads", "stat", file]) as [FileStat | null]
-    return answer[0]
-  }
-
-  private access() {
-    active()
-    if (!this.accessPromise) {
-      const resolving = wire.request(["uploads", "access"]).then(answer => {
-        const [root, limit] = answer as [unknown, unknown]
-
-        if (typeof root !== "string" || !isAbsolute(root) || typeof limit !== "number" || !Number.isFinite(limit) || limit <= 0) {
-          throw new Error("The System returned invalid upload access")
-        }
-
-        return { root, limit }
-      })
-      const retained = resolving.catch(error => {
-        if (this.accessPromise === retained) this.accessPromise = null
-        throw error
-      })
-
-      this.accessPromise = retained
-    }
-
-    return this.accessPromise
+    const [stat] = await wire.request(["uploads", "stat", file]) as [FileStat | null]
+    return stat
   }
 }
 
-function active() {
-  wire.signal.throwIfAborted()
-  return wire.signal
+async function collect(source: ReadableStream<Uint8Array>) {
+  const chunks: Uint8Array[] = []
+  let size = 0
+  for await (const chunk of source) { const value = bytes(chunk); chunks.push(value); size += value.byteLength }
+  const result = new Uint8Array(size)
+  let offset = 0
+  for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.byteLength }
+  return result
+}
+
+function bytes(value: unknown) {
+  if (value instanceof Uint8Array) return value
+  if (Array.isArray(value) && value.every(byte => Number.isInteger(byte) && byte >= 0 && byte <= 255)) return Uint8Array.from(value)
+  throw new Error("The System returned invalid bytes")
 }
 
 function requireFile(file: string) {
   if (!isUploadFile(file)) throw new Error("That is not an upload file")
-}
-
-interface Access {
-  root: string
-  limit: number
 }
 
 export const uploads = new ServerUploads()

@@ -45,7 +45,6 @@ import {
   type WindowEvents,
   type WindowState
 } from "@phreshos/core"
-import { randomUUID } from "node:crypto"
 import Events, { stream } from "./events.js"
 import Deadline from "./deadline.js"
 import HandleRegistry from "./handle-registry.js"
@@ -404,8 +403,8 @@ class ServerEndpointHandle extends CoreServerEndpoint {
     await wire.requestWithin(["wait-ready", this.owner.address, "server", true], deadline)
 
     const identity = await wire.identity()
-    const address = `server:${identity.process}:${randomUUID()}`
-    const questionId = randomUUID()
+    const address = `server:${identity.process}:${crypto.randomUUID()}`
+    const questionId = crypto.randomUUID()
     const waiting = wire.expectWithin(address, deadline)
 
     wire.send("end-host", "ask", this.owner.address, "server", address, questionId, event, payload)

@@ -76,8 +76,14 @@ test("package contract", async () => {
       join(consumer, "runtime.mjs"),
       `import assert from "node:assert/strict"
   import * as core from "@phreshos/core"
-  import * as sdk from "@phreshos/server"
-  import { context, system } from "@phreshos/server"
+
+  globalThis.__PHRESHOS_SERVER_TRANSPORT__ = Object.freeze({
+    send() {},
+    onMessage() {},
+    onClose() {}
+  })
+  const sdk = await import("@phreshos/server")
+  const { context, system } = sdk
 
   const { ClientEndpoint, ClientService, Endpoint, Process, Program, ServerEndpoint, ServerService, Service } = core
 

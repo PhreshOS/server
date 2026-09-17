@@ -14,7 +14,18 @@ test("worker contract", async () => {
 
   await writeFile(entry, `
   import { parentPort } from "node:worker_threads"
-  import { context, system } from ${JSON.stringify(sdk)}
+
+  const listeners = new Set()
+  Object.defineProperty(globalThis, "__PHRESHOS_SERVER_TRANSPORT__", {
+    value: Object.freeze({
+      send: message => parentPort.postMessage(message),
+      onMessage: listener => listeners.add(listener),
+      onClose: listener => parentPort.once("close", listener)
+    })
+  })
+  parentPort.on("message", message => { for (const listener of listeners) listener(message) })
+
+  const { context, system } = await import(${JSON.stringify(sdk)})
 
   const [value, name, uploadsPath] = await Promise.all([
     context.options("worker-test"),
@@ -48,8 +59,8 @@ test("worker contract", async () => {
         if (route === "end-host" && values[0] === "wait" && typeof values[1] === "string") {
           const result = values[2] === "current-process"
             ? [workerProcess()]
-            : values[2] === "uploads" && values[3] === "access"
-              ? [directory, 1024]
+            : values[2] === "uploads" && values[3] === "path"
+              ? [directory]
               : ["worker-value"]
 
           worker.postMessage(serialize(["end-host", "answer", values[1], { success: true, result }]))

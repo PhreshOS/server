@@ -1,10 +1,8 @@
-import { randomUUID } from "node:crypto"
 import type { Cleanup, ServiceKey } from "@phreshos/core"
 import Deadline from "./deadline.js"
 import { defaultTimeout } from "./events.js"
 import type { HandleAddress } from "./domain.js"
 import { deserialize, serialize } from "@the-link/messagepack"
-import { parentPort } from "node:worker_threads"
 
 type Handler = (...values: unknown[]) => unknown
 type Failure = (error: Error) => void
@@ -107,9 +105,25 @@ class Wire {
     return this.requestWithin(values, new Deadline(timeout))
   }
 
+  public requestOrNull(values: unknown[], timeout: number): Promise<unknown | null> {
+    if (this.signal.aborted) return Promise.reject(this.signal.reason)
+    const question = identity()
+
+    return new Promise((resolve, reject) => {
+      this.send("boundary", "expect", question)
+      const timer = setTimeout(() => {
+        this.pending.delete(question)
+        this.send("boundary", "forget", question)
+        resolve(null)
+      }, timeout)
+      this.pending.set(question, { resolve, reject, timer })
+      this.send("end-host", "wait", question, ...values)
+    })
+  }
+
   public requestWithin(values: unknown[], deadline: Deadline): Promise<unknown> {
     if (this.signal.aborted) return Promise.reject(this.signal.reason)
-    const question = randomUUID()
+    const question = identity()
 
     return new Promise((resolve, reject) => {
       this.send("boundary", "expect", question)
@@ -130,7 +144,7 @@ class Wire {
     const wire = this
 
     return (async function* () {
-      const question = randomUUID()
+      const question = identity()
       const state: PendingStream = {
         queue: [],
         opened: false,
@@ -271,7 +285,7 @@ class Wire {
     handler: Handler,
     impossible?: Failure
   ): Cleanup {
-    const subscription = randomUUID()
+    const subscription = identity()
     const stop = this.on("observed", subscription, handler)
 
     if (impossible) this.impossible.set(subscription, impossible)
@@ -293,7 +307,7 @@ class Wire {
     handler: Handler,
     impossible?: Failure
   ): Cleanup {
-    const subscription = randomUUID()
+    const subscription = identity()
     const stop = this.on("emitted", subscription, handler)
 
     if (impossible) this.impossible.set(subscription, impossible)
@@ -314,7 +328,7 @@ class Wire {
     event: string | null,
     handler: Handler
   ): Cleanup {
-    const subscription = randomUUID()
+    const subscription = identity()
     const stop = this.on("service-event", subscription, handler)
 
     this.send("end-host", "service-follow", subscription, key, scope, event)
@@ -326,7 +340,7 @@ class Wire {
   }
 
   private register(kind: TrafficKind, route: string, event: string | null, subject: string | null, impossible?: Failure) {
-    const subscription = randomUUID()
+    const subscription = identity()
 
     if (impossible) this.impossible.set(subscription, impossible)
 
@@ -465,19 +479,23 @@ class Wire {
 }
 
 function endpointTransport(): EndpointTransport {
-  const worker = parentPort
+  const injected = (globalThis as typeof globalThis & { __PHRESHOS_SERVER_TRANSPORT__?: EndpointTransport }).__PHRESHOS_SERVER_TRANSPORT__
+  if (injected) return injected
 
-  if (worker) return {
-    onMessage: listener => worker.on("message", listener),
-    onClose: listener => worker.once("close", listener),
-    send: message => worker.postMessage(message)
-  }
+  const process = (globalThis as typeof globalThis & { process?: ProcessTransport }).process
+  if (!process?.on || !process.once || !process.send) throw new Error("The Server SDK has no System transport")
 
   return {
     onMessage: listener => { process.on("message", listener) },
     onClose: listener => { process.once("disconnect", listener) },
     send: message => { process.send?.(message) }
   }
+}
+
+function identity() {
+  const value = globalThis.crypto?.randomUUID?.()
+  if (!value) throw new Error("This JavaScript environment does not provide crypto.randomUUID()")
+  return value
 }
 
 function transportMessageBytes(value: unknown) {
@@ -501,6 +519,12 @@ function transportMessageBytes(value: unknown) {
 interface EndpointTransport {
   onMessage(listener: (message: unknown) => void): void
   onClose(listener: () => void): void
+  send(message: Uint8Array): void
+}
+
+interface ProcessTransport {
+  on(event: "message", listener: (message: unknown) => void): void
+  once(event: "disconnect", listener: () => void): void
   send(message: Uint8Array): void
 }
 

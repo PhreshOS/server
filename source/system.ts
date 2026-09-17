@@ -42,7 +42,7 @@ class SystemHandle implements CoreSystem {
   public readonly connection: SystemConnection = new SystemConnectionHandle()
   public readonly session: SystemSession = new SystemSessionHandle()
   public readonly uploads = uploads
-  public readonly network = network(() => wire.signal)
+  public readonly network = network
 
   public async *shell(command: string, options: ShellOptions = {}) {
     const signal = options.signal ? AbortSignal.any([options.signal, wire.signal]) : wire.signal
