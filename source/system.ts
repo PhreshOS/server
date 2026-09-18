@@ -1,6 +1,9 @@
 import {
   parseSessionEndSnapshot,
+  execute as executeRequest,
   type Connection,
+  type ExecuteRequest,
+  type ExecuteResult,
   type ServiceKey,
   type System as CoreSystem,
   type SystemConnection,
@@ -43,6 +46,10 @@ class SystemHandle implements CoreSystem {
   public readonly session: SystemSession = new SystemSessionHandle()
   public readonly uploads = uploads
   public readonly network = network
+
+  public execute<Request extends ExecuteRequest>(request: Request): Promise<ExecuteResult<Request>> {
+    return executeRequest(this, request)
+  }
 
   public async *shell(command: string, options: ShellOptions = {}) {
     const signal = options.signal ? AbortSignal.any([options.signal, wire.signal]) : wire.signal
