@@ -36,6 +36,7 @@ test("process contract", async () => {
 
     const subscription = deserialize(sent.at(-1))
 
+    assert.ok(subscription)
     assert.equal(subscription[0], "boundary")
     assert.equal(subscription[1], "subscribe")
     assert.equal(subscription[3], "publish")
@@ -44,6 +45,23 @@ test("process contract", async () => {
     assert.equal(subscription[6], "process-reference")
 
     stop()
+
+    const unavailableBefore = sent.length
+    const unavailable = endpointLifecycle({ identity: "missing", reference: "missing-reference" }, "server")
+      .wait("start", 1_000)
+    await new Promise(resolve => setImmediate(resolve))
+    const unavailableValidation = sent.slice(unavailableBefore).map(deserialize)
+      .find(message => message[0] === "end-host" && message[1] === "wait")
+
+    assert.ok(unavailableValidation)
+
+    const rejected = serialize(["host-end", "answer", unavailableValidation[2], {
+      success: false,
+      error: "The Endpoint handle does not exist"
+    }])
+
+    process.emit("message", Object.fromEntries([...rejected].map((byte, index) => [index, byte])))
+    await assert.rejects(unavailable, /does not exist/)
   } finally {
     if (originalSend) process.send = originalSend
     else delete process.send
@@ -63,7 +81,7 @@ test("process contract", async () => {
         description: null,
         hasAgent: false,
         server: { start: true, service: false },
-        client: { start: true, service: false, title: null, header: null, size: null, position: null, layer: null, minimize: null, maximize: null }
+        client: { start: true, service: false, title: null, header: null, frame: null, transaction: null, size: null, position: null, layer: null, minimize: null, maximize: null }
       },
       options: {},
       startedAt: new Date(0),

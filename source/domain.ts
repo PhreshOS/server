@@ -43,7 +43,9 @@ import {
   type Window as CoreWindow,
   type WindowGeometry,
   type WindowEvents,
-  type WindowState
+  type WindowState,
+  type WindowFrame,
+  type WindowTransaction
 } from "@phreshos/core"
 import Events, { stream } from "./events.js"
 import Deadline from "./deadline.js"
@@ -74,7 +76,7 @@ export type Endpoint<Events extends object = {}, Fallback = unknown> = CoreEndpo
 export type ServerEndpoint<Events extends object = {}, Fallback = unknown> = CoreServerEndpoint<Events, Fallback>
 export type ClientEndpoint<Events extends object = {}, Fallback = unknown> = CoreClientEndpoint<Events, Fallback>
 
-/** Server-visible Window capability owned by a Client Endpoint. */
+/** Authoritative Window capability permanently owned by a Client Endpoint. */
 export type Window = CoreWindow
 
 const handles = new HandleRegistry()
@@ -371,14 +373,14 @@ class ServerEndpointHandle extends CoreServerEndpoint {
     this.events = events.events
   }
 
-  public async process() { return this.owner }
+  public async process() { await this.running(); return this.owner }
 
   public readonly publish: CoreServerEndpoint["publish"] = (event: string, payload: unknown = undefined) => {
     wire.send("end-host", "send", this.owner.address, "server", event, payload)
   }
 
-  public async exists() {
-    const answer = await wire.request(["exists", "server", this.owner.address]) as [boolean]
+  public async running() {
+    const answer = await wire.request(["running", "server", this.owner.address]) as [boolean]
     return answer[0]
   }
 
@@ -433,13 +435,13 @@ class ClientEndpointHandle extends CoreClientEndpoint {
     this.events = events.events
   }
 
-  public async process() { return this.owner }
+  public async process() { await this.running(); return this.owner }
   public readonly publish: CoreClientEndpoint["publish"] = (event: string, payload: unknown = undefined) => {
     wire.send("end-host", "send", this.owner.address, "client", event, payload)
   }
 
-  public async exists() {
-    const answer = await wire.request(["exists", "client", this.owner.address]) as [boolean]
+  public async running() {
+    const answer = await wire.request(["running", "client", this.owner.address]) as [boolean]
     return answer[0]
   }
 
@@ -465,6 +467,8 @@ class WindowHandle extends Events<WindowEvents, never> implements CoreWindow {
 
   public async title() { return (await this.state()).title }
   public async header() { return (await this.state()).header }
+  public async frame() { return (await this.state()).frame }
+  public async openingTransaction() { return (await this.state()).transaction }
   public async position() { return (await this.state()).position }
   public async size() { return (await this.state()).size }
   public async minimized() { return (await this.state()).minimized }
@@ -478,6 +482,8 @@ class WindowHandle extends Events<WindowEvents, never> implements CoreWindow {
   public async maximize(maximized = true) { await wire.request(["maximize", await this.target(), maximized]) }
   public async changeTitle(title: string) { await wire.request(["changeTitle", await this.target(), title]) }
   public async changeHeader(header: boolean) { await wire.request(["changeHeader", await this.target(), header]) }
+  public async changeFrame(frame: WindowFrame) { await wire.request(["changeFrame", await this.target(), frame]) }
+  public async changeOpeningTransaction(transaction: WindowTransaction) { await wire.request(["changeOpeningTransaction", await this.target(), transaction]) }
   public async raise() { await wire.request(["raise", await this.target()]) }
 }
 
@@ -506,7 +512,7 @@ function deferredScoped(route: string, target: WindowTarget, convert: (event: st
 }
 
 function windowEvent(event: string) {
-  return event === "move" || event === "resize" || event === "geometry" || event === "minimize" || event === "maximize" || event === "changeTitle" || event === "changeHeader" || event === "front"
+  return event === "move" || event === "resize" || event === "geometry" || event === "minimize" || event === "maximize" || event === "changeTitle" || event === "changeHeader" || event === "changeFrame" || event === "front"
 }
 
 function deferred(target: WindowTarget, register: (subject: string) => Cleanup, impossible?: (error: Error) => void): Cleanup {
@@ -518,7 +524,6 @@ function deferred(target: WindowTarget, register: (subject: string) => Cleanup, 
   }, error => {
     const failure = error instanceof Error ? error : new Error(String(error))
     if (active && impossible) impossible(failure)
-    else if (active) queueMicrotask(() => { throw failure })
   })
 
   return () => {
@@ -553,8 +558,14 @@ export function endpointEvents(target: HandleAddress | null, half: "server" | "c
 
 /** Start and stop transitions belonging directly to one permanent Endpoint. */
 export function endpointLifecycle(target: LifecycleTarget, half: "server" | "client") {
+  const resolved = () => typeof target === "function" ? target() : Promise.resolve(target)
+  const viable = async () => {
+    const address = await resolved()
+    await wire.request(["running", half, address])
+    return address
+  }
   return new Events<EndpointLifecycleEvents, never>(
-    (event, listener, impossible) => resolved(target, subject => wire.on(
+    (event, listener, impossible) => lifecycleRegistration(target, viable, subject => wire.on(
       "process-host",
       endpointLifecycleEvent(event),
       (...values) => {
@@ -564,7 +575,7 @@ export function endpointLifecycle(target: LifecycleTarget, half: "server" | "cli
       subject,
       impossible
     ), impossible),
-    (listener, impossible) => resolved(target, subject => wire.onAll("process-host", (event, ...values) => {
+    (listener, impossible) => lifecycleRegistration(target, viable, subject => wire.onAll("process-host", (event, ...values) => {
       if (event !== "endpointStart" && event !== "endpointStop") return
       const message = unscoped(subject, values)
       if (message?.[1] === half) listener(event === "endpointStart" ? "start" : "stop", undefined)
@@ -572,8 +583,14 @@ export function endpointLifecycle(target: LifecycleTarget, half: "server" | "cli
   )
 }
 
-function resolved(target: LifecycleTarget, register: (subject: string) => Cleanup, impossible?: (error: Error) => void) {
-  return typeof target === "function" ? deferred(target, register, impossible) : register(target.reference)
+function lifecycleRegistration(
+  target: LifecycleTarget,
+  viable: WindowTarget,
+  register: (subject: string) => Cleanup,
+  impossible?: (error: Error) => void
+) {
+  if (impossible) return deferred(viable, register, impossible)
+  return typeof target === "function" ? deferred(target, register) : register(target.reference)
 }
 
 function endpointLifecycleEvent(event: string) {

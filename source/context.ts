@@ -56,13 +56,13 @@ class ContextClientHandle extends ClientEndpoint {
     this.events = events.events
   }
 
-  public process() { return this.owner() }
+  public async process() { await this.running(); return this.owner() }
   public readonly publish: ClientEndpoint["publish"] = (event: string, payload: unknown = undefined) => {
     wire.send("end-end", event, payload)
   }
 
-  public async exists() {
-    const answer = await wire.request(["exists", "client"]) as [boolean]
+  public async running() {
+    const answer = await wire.request(["running", "client"]) as [boolean]
     return answer[0]
   }
 
