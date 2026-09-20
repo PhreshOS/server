@@ -77,7 +77,7 @@ test("process contract", async () => {
         identity: "program",
         assetId: "program-assets",
         name: "Program",
-        version: null,
+        version: "0.0.0",
         description: null,
         hasAgent: false,
         server: { start: true, service: false },

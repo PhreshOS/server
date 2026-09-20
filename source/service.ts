@@ -1,12 +1,13 @@
 import {
   ClientService as CoreClientService,
   ServerService as CoreServerService,
-  isServiceKey,
-  type EndpointLifecycleEvents,
-  type EndpointLifecycle,
+  isServiceAddress,
+  type ServiceLifecycleEvents,
+  type ServiceLifecycle,
+  type ServiceProgramMetadata,
+  type ServiceProgramMetadataOptions,
   type Subscribable,
-  type Service,
-  type ServiceKey
+  type ServiceAddress
 } from "@phreshos/core"
 import Deadline from "./deadline.js"
 import Events from "./events.js"
@@ -26,45 +27,55 @@ export abstract class ClientService<Events extends object = {}, Fallback = unkno
 }
 
 class ServiceHandle {
-  public readonly lifecycle: EndpointLifecycle
+  public readonly lifecycle: ServiceLifecycle
 
-  public constructor(protected readonly key: ServiceKey) {
-    this.lifecycle = new Events<EndpointLifecycleEvents, never>(...serviceEvents(key, "lifecycle"))
+  public constructor(protected readonly serviceAddress: ServiceAddress) {
+    this.lifecycle = new Events<ServiceLifecycleEvents, never>(...serviceEvents(serviceAddress, "lifecycle"))
   }
 
   public readonly publish = (event: string, payload: unknown = undefined) => {
-    wire.send("end-host", "service-send", this.key, event, payload)
+    wire.send("end-host", "service-send", this.serviceAddress, event, payload)
   }
 
-  public async exists() {
-    const answer = await wire.request(["service-exists", this.key]) as [boolean]
+  public address() { return this.serviceAddress }
+
+  public async available() {
+    const answer = await wire.request(["service-available", this.serviceAddress]) as [boolean]
     return answer[0]
   }
 
   public async waitReady(timeout?: number) {
-    await wire.request(["service-wait-ready", this.key, timeout], timeout)
+    await wire.request(["service-wait-ready", this.serviceAddress, timeout], timeout)
+  }
+
+  public async programMetadata(options: ServiceProgramMetadataOptions = {}) {
+    const iconSize = options.icon ?? "medium"
+    const [value] = await wire.request(["service-program-metadata", this.serviceAddress, iconSize]) as [unknown]
+    return parseServiceProgramMetadata(value)
   }
 }
 
 class ServerHandler<EventsMap extends object = {}, Fallback = unknown> extends ServerService<EventsMap, Fallback> {
-  public override readonly lifecycle: EndpointLifecycle
+  public override readonly lifecycle: ServiceLifecycle
   public override readonly subscribe: Subscribable<EventsMap, Fallback>["subscribe"]
   public override readonly wait: Subscribable<EventsMap, Fallback>["wait"]
   public override readonly events: Subscribable<EventsMap, Fallback>["events"]
   private readonly service: ServiceHandle
 
-  public constructor(private readonly key: ServiceKey & { endpoint: "server" }) {
+  public constructor(private readonly serviceAddress: ServiceAddress<"server">) {
     super()
-    this.service = new ServiceHandle(key)
+    this.service = new ServiceHandle(serviceAddress)
     this.lifecycle = this.service.lifecycle
-    const events = new Events<EventsMap, Fallback>(...serviceEvents(key, "events"))
+    const events = new Events<EventsMap, Fallback>(...serviceEvents(serviceAddress, "events"))
     this.subscribe = events.subscribe
     this.wait = events.wait
     this.events = events.events
   }
 
   public override readonly publish = (event: string, payload: unknown = undefined) => this.service.publish(event, payload)
-  public override exists() { return this.service.exists() }
+  public override address() { return this.serviceAddress }
+  public override available() { return this.service.available() }
+  public override programMetadata(options?: ServiceProgramMetadataOptions) { return this.service.programMetadata(options) }
 
   public override waitReady(timeout?: number) { return this.service.waitReady(timeout) }
 
@@ -84,7 +95,7 @@ class ServerHandler<EventsMap extends object = {}, Fallback = unknown> extends S
     const question = crypto.randomUUID()
     const waiting = wire.expectWithin(address, deadline)
 
-    wire.send("end-host", "service-ask", this.key, address, question, event, payload)
+    wire.send("end-host", "service-ask", this.serviceAddress, address, question, event, payload)
 
     try { return await waiting as Answer }
     finally { wire.forget(address) }
@@ -92,50 +103,69 @@ class ServerHandler<EventsMap extends object = {}, Fallback = unknown> extends S
 }
 
 class ClientHandler<EventsMap extends object = {}, Fallback = unknown> extends ClientService<EventsMap, Fallback> {
-  public override readonly lifecycle: EndpointLifecycle
+  public override readonly lifecycle: ServiceLifecycle
   public override readonly subscribe: Subscribable<EventsMap, Fallback>["subscribe"]
   public override readonly wait: Subscribable<EventsMap, Fallback>["wait"]
   public override readonly events: Subscribable<EventsMap, Fallback>["events"]
   private readonly service: ServiceHandle
 
-  public constructor(key: ServiceKey & { endpoint: "client" }) {
+  public constructor(private readonly serviceAddress: ServiceAddress<"client">) {
     super()
-    this.service = new ServiceHandle(key)
+    this.service = new ServiceHandle(serviceAddress)
     this.lifecycle = this.service.lifecycle
-    const events = new Events<EventsMap, Fallback>(...serviceEvents(key, "events"))
+    const events = new Events<EventsMap, Fallback>(...serviceEvents(serviceAddress, "events"))
     this.subscribe = events.subscribe
     this.wait = events.wait
     this.events = events.events
   }
 
   public override readonly publish = (event: string, payload: unknown = undefined) => this.service.publish(event, payload)
-  public override exists() { return this.service.exists() }
+  public override address() { return this.serviceAddress }
+  public override available() { return this.service.available() }
+  public override programMetadata(options?: ServiceProgramMetadataOptions) { return this.service.programMetadata(options) }
   public override waitReady(timeout?: number) { return this.service.waitReady(timeout) }
 }
 
-export function prepareService<EventsMap extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "server" }): ServerService<EventsMap, Fallback>
-export function prepareService<EventsMap extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "client" }): ClientService<EventsMap, Fallback>
-export function prepareService(key: ServiceKey): Service
-export function prepareService(key: ServiceKey): unknown {
-  if (!isServiceKey(key)) throw new Error("A complete service key is required")
+export function prepareService<EventsMap extends object = {}, Fallback = unknown>(address: ServiceAddress<"server">): ServerService<EventsMap, Fallback>
+export function prepareService<EventsMap extends object = {}, Fallback = unknown>(address: ServiceAddress<"client">): ClientService<EventsMap, Fallback>
+export function prepareService(address: ServiceAddress): ServerService | ClientService
+export function prepareService(address: ServiceAddress): ServerService | ClientService {
+  if (!isServiceAddress(address)) throw new Error("A complete Service address is required")
 
   const normalized = Object.freeze({
-    ...(key.program === undefined ? {} : { program: key.program }),
-    process: key.process,
-    endpoint: key.endpoint
+    program: address.program,
+    process: address.process,
+    endpoint: address.endpoint
   })
-  const identity = JSON.stringify([key.program ?? null, key.process, key.endpoint])
+  const identity = JSON.stringify([address.program, address.process, address.endpoint])
 
   return handles.obtain(`service:${identity}`, () => normalized.endpoint === "server"
-    ? new ServerHandler(normalized as ServiceKey & { endpoint: "server" })
-    : new ClientHandler(normalized as ServiceKey & { endpoint: "client" }))
+    ? new ServerHandler(normalized as ServiceAddress<"server">)
+    : new ClientHandler(normalized as ServiceAddress<"client">))
 }
 
-function serviceEvents(key: ServiceKey, scope: "lifecycle" | "events") {
+function serviceEvents(address: ServiceAddress, scope: "lifecycle" | "events") {
   return [
-    (event: string, listener: (message: unknown) => unknown) => wire.followService(key, scope, event, listener),
-    (listener: (event: string, message: unknown) => unknown) => wire.followService(key, scope, null, (event, payload) => {
+    (event: string, listener: (message: unknown) => unknown) => wire.followService(address, scope, event, listener),
+    (listener: (event: string, message: unknown) => unknown) => wire.followService(address, scope, null, (event, payload) => {
       if (typeof event === "string") listener(event, payload)
     })
   ] as const satisfies ConstructorParameters<typeof Events>
+}
+
+function parseServiceProgramMetadata(value: unknown): ServiceProgramMetadata {
+  if (!value || typeof value !== "object") throw new Error("The System returned invalid Service Program metadata")
+
+  const metadata = value as { name?: unknown, version?: unknown, icon?: unknown }
+
+  if (typeof metadata.name !== "string" || typeof metadata.version !== "string"
+    || !Array.isArray(metadata.icon) || metadata.icon.some(byte => typeof byte !== "number")) {
+    throw new Error("The System returned invalid Service Program metadata")
+  }
+
+  return Object.freeze({
+    name: metadata.name,
+    version: metadata.version,
+    icon: new Blob([Uint8Array.from(metadata.icon)], { type: "image/png" })
+  })
 }

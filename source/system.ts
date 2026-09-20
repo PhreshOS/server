@@ -4,7 +4,7 @@ import {
   type Connection,
   type ExecuteRequest,
   type ExecuteResult,
-  type ServiceKey,
+  type ServiceAddress,
   type System as CoreSystem,
   type SystemConnection,
   type SystemConnectionEvents,
@@ -14,6 +14,8 @@ import {
   type SystemProgramEvents,
   type SystemSession,
   type SystemSessionEvents,
+  type SystemService,
+  type SystemServiceEvents,
   type Session,
   type ProgramDefinition,
   type ShellOptions,
@@ -44,6 +46,7 @@ class SystemHandle implements CoreSystem {
   public readonly process: CoreSystemProcess = new SystemProcessHandle()
   public readonly connection: SystemConnection = new SystemConnectionHandle()
   public readonly session: SystemSession = new SystemSessionHandle()
+  public readonly service: SystemService = new SystemServiceHandle()
   public readonly uploads = uploads
   public readonly network = network
 
@@ -56,10 +59,32 @@ class SystemHandle implements CoreSystem {
     yield* shell(command, { ...options, signal })
   }
 
-  public service<ServiceEvents extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "server" }): ServerService<ServiceEvents, Fallback>
-  public service<ServiceEvents extends object = {}, Fallback = unknown>(key: ServiceKey & { endpoint: "client" }): ClientService<ServiceEvents, Fallback>
-  public service(key: ServiceKey): unknown { return prepareService(key) }
+}
 
+class SystemServiceHandle extends Events<SystemServiceEvents, never> implements SystemService {
+  public constructor() {
+    super(
+      (event, listener, impossible) => wire.on("host-service", event, (...values) => listener(prepareService(values[1] as ServiceAddress)), null, impossible),
+      observer => wire.onAll("host-service", (event, ...values) => {
+        if (typeof event === "string") observer(event, prepareService(values[1] as ServiceAddress))
+      })
+    )
+  }
+
+  public async list(): Promise<(ServerService | ClientService)[]> {
+    const [addresses] = await wire.request(["host-service-list"]) as [ServiceAddress[]]
+    return addresses.map(address => prepareService(address))
+  }
+
+  public async search(name: string): Promise<(ServerService | ClientService)[]> {
+    const [addresses] = await wire.request(["host-service-search", name]) as [ServiceAddress[]]
+    return addresses.map(address => prepareService(address))
+  }
+
+  public prepare<EventsMap extends object = {}, Fallback = unknown>(address: ServiceAddress<"server">): ServerService<EventsMap, Fallback>
+  public prepare<EventsMap extends object = {}, Fallback = unknown>(address: ServiceAddress<"client">): ClientService<EventsMap, Fallback>
+  public prepare(address: ServiceAddress): ServerService | ClientService
+  public prepare(address: ServiceAddress) { return prepareService(address) }
 }
 
 class SystemProgramHandle extends Events<SystemProgramEvents, never> implements CoreSystemProgram {

@@ -1,4 +1,4 @@
-import type { Cleanup, ServiceKey } from "@phreshos/core"
+import type { Cleanup, ServiceAddress } from "@phreshos/core"
 import Deadline from "./deadline.js"
 import { defaultTimeout } from "./events.js"
 import type { HandleAddress } from "./domain.js"
@@ -323,7 +323,7 @@ class Wire {
 
   /** Follow one exact service lifecycle or application event route. */
   public followService(
-    key: ServiceKey,
+    address: ServiceAddress,
     scope: "lifecycle" | "events",
     event: string | null,
     handler: Handler
@@ -331,7 +331,7 @@ class Wire {
     const subscription = identity()
     const stop = this.on("service-event", subscription, handler)
 
-    this.send("end-host", "service-follow", subscription, key, scope, event)
+    this.send("end-host", "service-follow", subscription, address, scope, event)
 
     return once(() => {
       stop()

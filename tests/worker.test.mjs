@@ -86,7 +86,7 @@ test("worker contract", async () => {
         identity: "worker-program",
         assetId: "worker-program-assets",
         name: "Worker Program",
-        version: null,
+        version: "0.0.0",
         description: null,
         hasAgent: false,
         server: { start: true, service: false },

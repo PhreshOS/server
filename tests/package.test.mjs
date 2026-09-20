@@ -113,27 +113,27 @@ test("package contract", async () => {
   assert.equal(typeof system.program.forceCreate, "function")
   assert.equal("forceCreateProgram" in system, false)
   assert.equal(typeof system.process.list, "function")
-  assert.equal(typeof system.service, "function")
+  assert.equal(typeof system.service, "object")
+  assert.equal(typeof system.service.prepare, "function")
+  assert.equal(typeof system.service.list, "function")
   assert.equal(typeof system.network.websocket, "function")
   assert.equal(typeof system.network.fetch, "function")
   assert.equal("fetch" in system, false)
   assert.equal("websocket" in system, false)
   assert.equal(typeof system.shell, "function")
   assert.equal("subscribe" in system, false)
-  const service = system.service({ program: "counter", process: "main", endpoint: "server" })
-  const clientService = system.service({ program: "counter", process: "main", endpoint: "client" })
-  const exactService = system.service({ process: "1f4b222c-25d7-4ba8-85e5-d5e59cfe0928", endpoint: "server" })
-  assert.equal(service, system.service({ program: "counter", process: "main", endpoint: "server" }))
-  assert.equal(clientService, system.service({ program: "counter", process: "main", endpoint: "client" }))
-  assert.equal(exactService, system.service({ process: "1f4b222c-25d7-4ba8-85e5-d5e59cfe0928", endpoint: "server" }))
-  assert.throws(() => system.service({ process: "main", endpoint: "server" }), /complete service key/)
+  const service = system.service.prepare({ program: "counter", process: "main", endpoint: "server" })
+  const clientService = system.service.prepare({ program: "counter", process: "main", endpoint: "client" })
+  assert.equal(service, system.service.prepare({ program: "counter", process: "main", endpoint: "server" }))
+  assert.equal(clientService, system.service.prepare({ program: "counter", process: "main", endpoint: "client" }))
+  assert.throws(() => system.service.prepare({ process: "main", endpoint: "server" }), /complete Service address/)
   assert(service instanceof Service)
   assert(service instanceof ServerService)
   assert(clientService instanceof Service)
   assert(clientService instanceof ClientService)
-  assert.equal("program" in service, false)
-  assert.equal("endpoint" in service, false)
-  assert.equal(typeof service.exists, "function")
+  assert.deepEqual(service.address(), { program: "counter", process: "main", endpoint: "server" })
+  assert.equal(typeof service.available, "function")
+  assert.equal(typeof service.programMetadata, "function")
   assert.equal(typeof service.waitReady, "function")
   assert.equal(typeof clientService.waitReady, "function")
   assert.equal(typeof clientService.publish, "function")
@@ -150,7 +150,7 @@ test("package contract", async () => {
     writeFileSync(
       join(consumer, "startup.mjs"),
       `import { system } from "@phreshos/server"
-  system.service({ program: "counter", process: "main", endpoint: "server" })
+  system.service.prepare({ program: "counter", process: "main", endpoint: "server" })
   setTimeout(() => process.exit(0), 25)
   `
     )
@@ -180,12 +180,11 @@ test("package contract", async () => {
   const homeFile: Promise<string> = system.storage.file("example.txt").text()
   // @ts-expect-error selecting a file requires at least one path segment
   system.storage.file()
-  const counter: ServerService<CounterEvents> = system.service<CounterEvents>({ program: "counter", process: "main", endpoint: "server" })
+  const counter: ServerService<CounterEvents> = system.service.prepare<CounterEvents>({ program: "counter", process: "main", endpoint: "server" })
   const counterReady: Promise<void> = counter.waitReady(10_000)
-  const clientService = system.service({ program: "counter", process: "main", endpoint: "client" })
-  const exactService: ServerService = system.service({ process: "1f4b222c-25d7-4ba8-85e5-d5e59cfe0928", endpoint: "server" })
+  const clientService = system.service.prepare({ program: "counter", process: "main", endpoint: "client" })
   const counterStop = counter.subscribe("change", value => void value)
-  const counterLifecycleStop = counter.lifecycle.subscribe("start", () => undefined)
+  const counterLifecycleStop = counter.lifecycle.subscribe("available", () => undefined)
   const counterAnswer: Promise<number> = counter.ask<number>("value")
   const serviceRole: Promise<boolean> = context.isService()
   const processName: Promise<string | null> = context.name()
@@ -223,8 +222,10 @@ test("package contract", async () => {
   const shell: AsyncGenerator<ShellEvent, void, void> = system.shell("printf hello", { cwd: "/tmp" })
   const forcedProgram: Promise<Program> = system.program.forceCreate("./phresh.config.ts")
   const geometry: Promise<void> = client.window.setGeometry({
-    position: { x: "0/1", y: "0/1" },
-    size: { width: "1/2", height: "1/2" }
+    x: "0/1",
+    y: "0/1",
+    width: "1/2",
+    height: "1/2"
   })
   type ServerWindowHasSurface = "surface" extends keyof ClientEndpoint["window"] ? true : false
   const serverWindowHasSurface: ServerWindowHasSurface = false
@@ -236,7 +237,6 @@ test("package contract", async () => {
   void uploadText
   void homeFile
   void counter
-  void exactService
   void serverStart
   void counterReady
   void clientService
