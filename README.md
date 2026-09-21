@@ -10,8 +10,8 @@ The runtime adapter for a PhreshOS Program's Server Endpoint.
 ## Role
 
 The Server SDK exposes the complete Core `system` contract and the current
-Server `context` inside both supported execution modes: supervised child
-processes and System-owned Workers.
+Server `context` in all three execution modes: supervised command processes,
+System-owned Workers, and capability-contained Sandboxes.
 
 It adapts the execution boundary without redefining Program, Process, Endpoint,
 or Service. The System remains authoritative for execution, persistence,
