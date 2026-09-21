@@ -2,6 +2,7 @@ import type { Cleanup, ServiceAddress } from "@phreshos/core"
 import Deadline from "./deadline.js"
 import { defaultTimeout } from "./events.js"
 import type { HandleAddress } from "./domain.js"
+import { FrameReader, writeFrame } from "@the-link/ipc/framing"
 import { deserialize, serialize } from "@the-link/messagepack"
 
 type Handler = (...values: unknown[]) => unknown
@@ -483,12 +484,63 @@ function endpointTransport(): EndpointTransport {
   if (injected) return injected
 
   const process = (globalThis as typeof globalThis & { process?: ProcessTransport }).process
-  if (!process?.on || !process.once || !process.send) throw new Error("The Server SDK has no System transport")
+  if (!process) throw new Error("The Server SDK has no System transport")
+
+  const address = process.env?.PHRESHOS_SERVER_ADDRESS
+  const token = process.env?.PHRESHOS_SERVER_TOKEN
+
+  if (address && token && process.getBuiltinModule) {
+    // A command may be launched through an intermediate shell, so the SDK
+    // connects from the actual Endpoint process instead of inheriting parent IPC.
+    delete process.env!.PHRESHOS_SERVER_ADDRESS
+    delete process.env!.PHRESHOS_SERVER_TOKEN
+    return socketTransport(process.getBuiltinModule("node:net"), address, token)
+  }
+
+  if (!process.on || !process.once || !process.send) throw new Error("The Server SDK has no System transport")
 
   return {
-    onMessage: listener => { process.on("message", listener) },
-    onClose: listener => { process.once("disconnect", listener) },
-    send: message => { process.send?.(message) }
+    onMessage: listener => { process.on!("message", listener) },
+    onClose: listener => { process.once!("disconnect", listener) },
+    send: message => { process.send!(message) }
+  }
+}
+
+function socketTransport(network: NetworkModule, address: string, token: string): EndpointTransport {
+  const maximumFrameSize = 16 * 1024 * 1024
+  const reader = new FrameReader(maximumFrameSize)
+  const messages = new Set<(message: unknown) => void>()
+  const closing = new Set<() => void>()
+  const pending: Uint8Array[] = []
+  const socket = network.connect(address)
+  let connected = false
+  let writes = Promise.resolve()
+
+  const write = (bytes: Uint8Array) => {
+    writes = writes.then(() => writeFrame(socket, bytes, maximumFrameSize))
+    writes.catch(() => undefined)
+  }
+
+  socket.on("connect", () => {
+    connected = true
+    write(new TextEncoder().encode(token))
+    for (const message of pending.splice(0)) write(message)
+  })
+  socket.on("data", (chunk: Uint8Array) => {
+    for (const frame of reader.read(chunk)) {
+      for (const listener of messages) listener(frame)
+    }
+  })
+  socket.on("error", () => undefined)
+  socket.once("close", () => { for (const listener of closing) listener() })
+
+  return {
+    onMessage(listener) { messages.add(listener) },
+    onClose(listener) { closing.add(listener) },
+    send(message) {
+      if (connected) write(message)
+      else pending.push(Uint8Array.from(message))
+    }
   }
 }
 
@@ -523,9 +575,25 @@ interface EndpointTransport {
 }
 
 interface ProcessTransport {
-  on(event: "message", listener: (message: unknown) => void): void
-  once(event: "disconnect", listener: () => void): void
-  send(message: Uint8Array): void
+  env?: Record<string, string | undefined>
+  getBuiltinModule?(name: "node:net"): NetworkModule
+  on?(event: "message", listener: (message: unknown) => void): void
+  once?(event: "disconnect", listener: () => void): void
+  send?(message: Uint8Array): void
+}
+
+interface NetworkModule {
+  connect(address: string): NetworkSocket
+}
+
+interface NetworkSocket {
+  readonly destroyed: boolean
+  readonly writable: boolean
+  on(event: "connect", listener: () => void): this
+  on(event: "data", listener: (chunk: Uint8Array) => void): this
+  on(event: "error", listener: (error: Error) => void): this
+  once(event: "close", listener: () => void): this
+  write(bytes: Uint8Array, callback: (error?: Error | null) => void): unknown
 }
 
 const maximumStreamQueue = 256

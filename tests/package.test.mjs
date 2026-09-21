@@ -1,10 +1,13 @@
 import assert from "node:assert/strict"
-import { execFileSync, fork } from "node:child_process"
+import { execFileSync, fork, spawn } from "node:child_process"
+import { randomUUID } from "node:crypto"
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { deserialize as decode } from "@the-link/messagepack"
+import { FrameReader } from "@the-link/ipc/framing"
 import manifest from "../package.json" with { type: "json" }
 import { test } from "vitest"
 
@@ -160,6 +163,10 @@ test("package contract", async () => {
     assert(messages[0] instanceof Uint8Array)
     assert.deepEqual(decode(messages[0]), ["boundary", "ready"])
 
+    const socketMessages = await socketChildMessages(join(consumer, "startup.mjs"), consumer)
+    assert.equal(socketMessages.length, 1)
+    assert.deepEqual(decode(socketMessages[0]), ["boundary", "ready"])
+
     writeFileSync(
       join(consumer, "consumer.ts"),
       `import { context, system } from "@phreshos/server"
@@ -313,5 +320,51 @@ test("package contract", async () => {
         else reject(new Error(`the packed Server SDK exited with code ${code} and signal ${signal}`))
       })
     })
+  }
+
+  async function socketChildMessages(entry, cwd) {
+    const token = randomUUID()
+    const identity = `ps-${randomUUID().replaceAll("-", "")}`
+    const address = process.platform === "win32" ? `\\\\.\\pipe\\${identity}` : join(tmpdir(), `${identity}.sock`)
+    const messages = []
+    const server = createServer(socket => {
+      const reader = new FrameReader(16 * 1024 * 1024)
+      let authenticated = false
+
+      socket.on("data", chunk => {
+        for (const frame of reader.read(chunk)) {
+          if (!authenticated) {
+            authenticated = new TextDecoder().decode(frame) === token
+            assert(authenticated, "the packed Server SDK used an invalid command transport token")
+          } else messages.push(frame)
+        }
+      })
+    })
+
+    await new Promise((resolveListen, reject) => {
+      server.once("error", reject)
+      server.listen(address, resolveListen)
+    })
+
+    try {
+      await new Promise((resolveChild, reject) => {
+        const child = spawn(process.execPath, [entry], {
+          cwd,
+          stdio: "inherit",
+          env: { ...process.env, PHRESHOS_SERVER_ADDRESS: address, PHRESHOS_SERVER_TOKEN: token }
+        })
+
+        child.once("error", reject)
+        child.once("exit", (code, signal) => {
+          if (code === 0 && signal === null) resolveChild()
+          else reject(new Error(`the packed Server SDK socket process exited with code ${code} and signal ${signal}`))
+        })
+      })
+    } finally {
+      await new Promise(resolveClose => server.close(resolveClose))
+      if (process.platform !== "win32") rmSync(address, { force: true })
+    }
+
+    return messages
   }
 }, 120_000)
