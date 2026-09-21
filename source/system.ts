@@ -202,6 +202,10 @@ function systemProgramEvent(event: string, values: unknown[]): unknown {
     return { program: program(values[1]), purge: values[2] === true }
   }
 
+  if (event === "pinned") {
+    return { program: program(values[1]), pinned: values[2] === true }
+  }
+
   return values[0]
 }
 

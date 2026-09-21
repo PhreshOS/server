@@ -6,6 +6,7 @@ import {
   ServerEndpoint as CoreServerEndpoint,
   parseEndpointReference,
   parseProcessSnapshot,
+  parseProgramDefinition,
   parseProgramSnapshot,
   type AnswerCapture,
   type AnswerOutcome,
@@ -52,7 +53,6 @@ import Deadline from "./deadline.js"
 import HandleRegistry from "./handle-registry.js"
 import { area, sql, store } from "./storage.js"
 import startup from "./startup.js"
-import launch from "./launch.js"
 import { programPermissions } from "./permissions.js"
 import wire from "./wire.js"
 
@@ -93,7 +93,6 @@ class ProgramHandle extends CoreProgram {
   public readonly logs
   public readonly database
   public readonly startup
-  public readonly launch
   public readonly permissions
   private record: ProgramRecord
 
@@ -108,7 +107,6 @@ class ProgramHandle extends CoreProgram {
     this.logs = sql("logs", this.address)
     this.database = sql("database", this.address)
     this.startup = startup(this.address)
-    this.launch = launch(this.address)
     this.permissions = programPermissions(this.address)
     const events = scoped<ProgramEvents, never>("program-host", record.reference, programEvent)
     this.subscribe = events.subscribe
@@ -134,6 +132,20 @@ class ProgramHandle extends CoreProgram {
     const answer = await wire.request(["icon", this.address, size]) as [number[]]
     return new Blob([Uint8Array.from(answer[0])], { type: "image/png" })
   }
+
+  public async definition() {
+    const answer = await wire.request(["program-definition", this.address]) as [unknown]
+    return parseProgramDefinition(answer[0])
+  }
+
+  public async pinned() {
+    const answer = await wire.request(["pinned", this.address, "get"]) as [boolean]
+    return answer[0]
+  }
+
+  public async pin() { await wire.request(["pinned", this.address, "pin"]) }
+
+  public async unpin() { await wire.request(["pinned", this.address, "unpin"]) }
 
   public async agent() {
     if (!this.hasAgent) return null
@@ -608,6 +620,7 @@ function programEvent(event: string, values: unknown[]): unknown {
   if (event === "processCreate") return process(values[0])
   if (event === "processExit") return { process: process(values[0]), ...exit(values[1], values[2]) }
   if (event === "uninstall") return { purge: values[0] === true }
+  if (event === "pinned") return values[0] === true
   return undefined
 }
 

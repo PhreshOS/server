@@ -5,7 +5,7 @@ import {
   type ServiceLifecycleEvents,
   type ServiceLifecycle,
   type ServiceProgramMetadata,
-  type ServiceProgramMetadataOptions,
+  type ProgramIconSize,
   type Subscribable,
   type ServiceAddress
 } from "@phreshos/core"
@@ -48,10 +48,14 @@ class ServiceHandle {
     await wire.request(["service-wait-ready", this.serviceAddress, timeout], timeout)
   }
 
-  public async programMetadata(options: ServiceProgramMetadataOptions = {}) {
-    const iconSize = options.icon ?? "medium"
-    const [value] = await wire.request(["service-program-metadata", this.serviceAddress, iconSize]) as [unknown]
+  public async programMetadata() {
+    const [value] = await wire.request(["service-program-metadata", this.serviceAddress]) as [unknown]
     return parseServiceProgramMetadata(value)
+  }
+
+  public async programIcon(size: ProgramIconSize = "medium") {
+    const [value] = await wire.request(["service-program-icon", this.serviceAddress, size]) as [unknown]
+    return parseServiceProgramIcon(value)
   }
 }
 
@@ -75,7 +79,8 @@ class ServerHandler<EventsMap extends object = {}, Fallback = unknown> extends S
   public override readonly publish = (event: string, payload: unknown = undefined) => this.service.publish(event, payload)
   public override address() { return this.serviceAddress }
   public override available() { return this.service.available() }
-  public override programMetadata(options?: ServiceProgramMetadataOptions) { return this.service.programMetadata(options) }
+  public override programMetadata() { return this.service.programMetadata() }
+  public override programIcon(size?: ProgramIconSize) { return this.service.programIcon(size) }
 
   public override waitReady(timeout?: number) { return this.service.waitReady(timeout) }
 
@@ -122,7 +127,8 @@ class ClientHandler<EventsMap extends object = {}, Fallback = unknown> extends C
   public override readonly publish = (event: string, payload: unknown = undefined) => this.service.publish(event, payload)
   public override address() { return this.serviceAddress }
   public override available() { return this.service.available() }
-  public override programMetadata(options?: ServiceProgramMetadataOptions) { return this.service.programMetadata(options) }
+  public override programMetadata() { return this.service.programMetadata() }
+  public override programIcon(size?: ProgramIconSize) { return this.service.programIcon(size) }
   public override waitReady(timeout?: number) { return this.service.waitReady(timeout) }
 }
 
@@ -156,16 +162,18 @@ function serviceEvents(address: ServiceAddress, scope: "lifecycle" | "events") {
 function parseServiceProgramMetadata(value: unknown): ServiceProgramMetadata {
   if (!value || typeof value !== "object") throw new Error("The System returned invalid Service Program metadata")
 
-  const metadata = value as { name?: unknown, version?: unknown, icon?: unknown }
+  const metadata = value as { name?: unknown, version?: unknown }
 
-  if (typeof metadata.name !== "string" || typeof metadata.version !== "string"
-    || !Array.isArray(metadata.icon) || metadata.icon.some(byte => typeof byte !== "number")) {
+  if (typeof metadata.name !== "string" || typeof metadata.version !== "string") {
     throw new Error("The System returned invalid Service Program metadata")
   }
 
-  return Object.freeze({
-    name: metadata.name,
-    version: metadata.version,
-    icon: new Blob([Uint8Array.from(metadata.icon)], { type: "image/png" })
-  })
+  return Object.freeze({ name: metadata.name, version: metadata.version })
+}
+
+function parseServiceProgramIcon(value: unknown) {
+  if (!Array.isArray(value) || value.some(byte => typeof byte !== "number")) {
+    throw new Error("The System returned an invalid Service Program icon")
+  }
+  return new Blob([Uint8Array.from(value)], { type: "image/png" })
 }
