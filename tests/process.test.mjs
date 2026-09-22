@@ -81,7 +81,7 @@ test("process contract", async () => {
         description: null,
         hasAgent: false,
         server: { start: true, service: false },
-        client: { start: true, service: false, title: null, header: null, frame: null, transaction: null, size: null, position: null, layer: null, minimize: null, maximize: null }
+        client: { sandbox: true, start: true, service: false, title: null, header: null, frame: null, transaction: null, size: null, position: null, layer: null, minimize: null, maximize: null }
       },
       options: {},
       startedAt: new Date(0),
