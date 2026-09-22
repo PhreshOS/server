@@ -7,6 +7,7 @@ import {
   parseEndpointReference,
   parseProcessSnapshot,
   parseProgramDefinition,
+  parsePermissions,
   parseProgramSnapshot,
   type AnswerCapture,
   type AnswerOutcome,
@@ -621,6 +622,7 @@ function programEvent(event: string, values: unknown[]): unknown {
   if (event === "processExit") return { process: process(values[0]), ...exit(values[1], values[2]) }
   if (event === "uninstall") return { purge: values[0] === true }
   if (event === "pinned") return values[0] === true
+  if (event === "permissions") return parsePermissions(values[0])
   return undefined
 }
 

@@ -1,5 +1,6 @@
 import {
   parseSessionEndSnapshot,
+  parsePermissions,
   execute as executeRequest,
   type Connection,
   type ExecuteRequest,
@@ -204,6 +205,11 @@ function systemProgramEvent(event: string, values: unknown[]): unknown {
 
   if (event === "pinned") {
     return { program: program(values[1]), pinned: values[2] === true }
+  }
+
+  if (event === "permissions") {
+    const handle = program(values[1])
+    return { program: handle, permissions: parsePermissions((values[1] as { permissions?: unknown }).permissions) }
   }
 
   return values[0]
