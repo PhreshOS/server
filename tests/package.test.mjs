@@ -248,7 +248,7 @@ test("package contract", async () => {
     height: "1/2"
   })
   type ServerWindowHasSurface = "surface" extends keyof ClientEndpoint["window"] ? true : false
-  const serverWindowHasSurface: ServerWindowHasSurface = true
+  const serverWindowHasSurface: ServerWindowHasSurface = false
   type ServerWindowHasLocal = "local" extends keyof ClientEndpoint["window"] ? true : false
   const serverWindowHasLocal: ServerWindowHasLocal = false
 
