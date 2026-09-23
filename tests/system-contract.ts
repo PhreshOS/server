@@ -5,8 +5,8 @@ declare const canonical: CoreSystem
 
 const shared: CoreSystem = system
 const attached: typeof system = canonical
-const connections: Promise<Connection[]> = system.connection.list()
-const sessions: Promise<Session[]> = system.session.list()
+const connections: Promise<Connection[]> = system.authentication.connections()
+const sessions: Promise<Session[]> = system.authentication.sessions()
 const execution: Promise<ExecuteOperationSummary[]> = system.execute({ $domain: "operation", $operation: "list" })
 
 void [shared, attached, connections, sessions, execution]

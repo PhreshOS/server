@@ -116,6 +116,9 @@ test("package contract", async () => {
   assert.equal(typeof system.program.forceCreate, "function")
   assert.equal("forceCreateProgram" in system, false)
   assert.equal(typeof system.process.list, "function")
+  assert.equal(typeof system.authentication.state, "function")
+  assert.equal(typeof system.authentication.setCredentials, "function")
+  assert.equal(typeof system.authentication.signOutAllSessions, "function")
   assert.equal(typeof system.service, "object")
   assert.equal(typeof system.service.prepare, "function")
   assert.equal(typeof system.service.list, "function")
@@ -180,6 +183,8 @@ test("package contract", async () => {
 
   const appearance: Promise<Appearance> = system.appearance.snapshot()
   const appearanceUpdate: Promise<void> = system.appearance.update({ colors: { dark: { danger: "#ff0000" } } })
+  const authenticationState: Promise<import("@phreshos/core").AuthenticationState> = system.authentication.state()
+  const authenticationConnections: Promise<import("@phreshos/core").Connection[]> = system.authentication.connections()
   const uploads: SystemUploads = system.uploads
   const uploadsPath: Promise<string> = uploads.path()
   const upload: Promise<Upload> = uploads.write("hello")
@@ -243,7 +248,7 @@ test("package contract", async () => {
     height: "1/2"
   })
   type ServerWindowHasSurface = "surface" extends keyof ClientEndpoint["window"] ? true : false
-  const serverWindowHasSurface: ServerWindowHasSurface = false
+  const serverWindowHasSurface: ServerWindowHasSurface = true
   type ServerWindowHasLocal = "local" extends keyof ClientEndpoint["window"] ? true : false
   const serverWindowHasLocal: ServerWindowHasLocal = false
 

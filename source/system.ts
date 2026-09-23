@@ -1,5 +1,7 @@
 import {
   parseSessionEndSnapshot,
+  parseAuthenticationRequirements,
+  parseAuthenticationState,
   parsePermissions,
   execute as executeRequest,
   type Connection,
@@ -7,14 +9,13 @@ import {
   type ExecuteResult,
   type ServiceAddress,
   type System as CoreSystem,
-  type SystemConnection,
-  type SystemConnectionEvents,
+  type AuthenticationCredentials,
+  type SystemAuthentication,
+  type SystemAuthenticationEvents,
   type SystemProcess as CoreSystemProcess,
   type SystemProcessEvents,
   type SystemProgram as CoreSystemProgram,
   type SystemProgramEvents,
-  type SystemSession,
-  type SystemSessionEvents,
   type SystemService,
   type SystemServiceEvents,
   type Session,
@@ -45,8 +46,7 @@ class SystemHandle implements CoreSystem {
   public readonly appearance: WritableAppearance = new ServerAppearance()
   public readonly program: CoreSystemProgram = new SystemProgramHandle()
   public readonly process: CoreSystemProcess = new SystemProcessHandle()
-  public readonly connection: SystemConnection = new SystemConnectionHandle()
-  public readonly session: SystemSession = new SystemSessionHandle()
+  public readonly authentication: SystemAuthentication = new SystemAuthenticationHandle()
   public readonly service: SystemService = new SystemServiceHandle()
   public readonly uploads = uploads
   public readonly network = network
@@ -140,45 +140,60 @@ class SystemProcessHandle extends Events<SystemProcessEvents, never> implements 
   }
 }
 
-class SystemConnectionHandle extends Events<SystemConnectionEvents, never> implements SystemConnection {
+class SystemAuthenticationHandle extends Events<SystemAuthenticationEvents, never> implements SystemAuthentication {
   public constructor() {
     super(
-      (event, listener, impossible) => wire.on("host-connection", event, (...values) => listener(systemConnectionEvent(event, values)), null, impossible),
-      observer => wire.onAll("host-connection", (event, ...values) => {
-        if (typeof event === "string") observer(event, systemConnectionEvent(event, values))
-      })
+      (event, listener, impossible) => {
+        const [route, sourceEvent] = authenticationEventRoute(event)
+        return wire.on(route, sourceEvent, (...values) => listener(systemAuthenticationEvent(route, sourceEvent, values)), null, impossible)
+      },
+      (observer, impossible) => {
+        const stops = (["host-connection", "host-session"] as const).map(route => wire.onAll(route, (event, ...values) => {
+          if (typeof event !== "string") return
+          const name = authenticationEventName(route, event)
+          if (name) observer(name, systemAuthenticationEvent(route, event, values))
+        }, null, impossible))
+        return () => stops.forEach(stop => stop())
+      }
     )
   }
 
-  public async list(): Promise<Connection[]> {
-    const [snapshots] = await wire.request(["host-connection-list"]) as [unknown[]]
+  public async state() {
+    const [value] = await wire.request(["host-authentication-state"]) as [unknown]
+    return parseAuthenticationState(value)
+  }
+
+  public async requirements() {
+    const [value] = await wire.request(["host-authentication-requirements"]) as [unknown]
+    return parseAuthenticationRequirements(value)
+  }
+
+  public async connections(): Promise<Connection[]> {
+    const [snapshots] = await wire.request(["host-authentication-connections"]) as [unknown[]]
     return snapshots.map(connection)
   }
 
-  public async find(identity: string): Promise<Connection | null> {
-    const [snapshot] = await wire.request(["host-connection-find", identity]) as [unknown]
+  public async connection(identity: string): Promise<Connection | null> {
+    const [snapshot] = await wire.request(["host-authentication-connection", identity]) as [unknown]
     return snapshot === null ? null : connection(snapshot)
   }
-}
 
-class SystemSessionHandle extends Events<SystemSessionEvents, never> implements SystemSession {
-  public constructor() {
-    super(
-      (event, listener, impossible) => wire.on("host-session", event, (...values) => listener(systemSessionEvent(event, values)), null, impossible),
-      observer => wire.onAll("host-session", (event, ...values) => {
-        if (typeof event === "string") observer(event, systemSessionEvent(event, values))
-      })
-    )
-  }
-
-  public async list(): Promise<Session[]> {
-    const [snapshots] = await wire.request(["host-session-list"]) as [unknown[]]
+  public async sessions(): Promise<Session[]> {
+    const [snapshots] = await wire.request(["host-authentication-sessions"]) as [unknown[]]
     return snapshots.map(session)
   }
 
-  public async find(identity: string): Promise<Session | null> {
-    const [snapshot] = await wire.request(["host-session-find", identity]) as [unknown]
+  public async session(identity: string): Promise<Session | null> {
+    const [snapshot] = await wire.request(["host-authentication-session", identity]) as [unknown]
     return snapshot === null ? null : session(snapshot)
+  }
+
+  public async setCredentials(credentials: AuthenticationCredentials) {
+    await wire.request(["host-authentication-set-credentials", credentials])
+  }
+
+  public async signOutAllSessions() {
+    await wire.request(["host-authentication-sign-out-all-sessions"])
   }
 }
 
@@ -215,11 +230,24 @@ function systemProgramEvent(event: string, values: unknown[]): unknown {
   return values[0]
 }
 
-function systemConnectionEvent(_event: string, values: unknown[]) {
-  return connection(values[1])
+function authenticationEventRoute(event: string): ["host-connection" | "host-session", string] {
+  if (event === "connectionCreate") return ["host-connection", "create"]
+  if (event === "connectionDisconnect") return ["host-connection", "disconnect"]
+  if (event === "sessionCreate") return ["host-session", "create"]
+  if (event === "sessionEnd") return ["host-session", "end"]
+  throw new Error(`The Authentication domain does not expose a ${event} event`)
 }
 
-function systemSessionEvent(event: string, values: unknown[]) {
+function authenticationEventName(route: "host-connection" | "host-session", event: string) {
+  if (route === "host-connection" && event === "create") return "connectionCreate"
+  if (route === "host-connection" && event === "disconnect") return "connectionDisconnect"
+  if (route === "host-session" && event === "create") return "sessionCreate"
+  if (route === "host-session" && event === "end") return "sessionEnd"
+  return null
+}
+
+function systemAuthenticationEvent(route: "host-connection" | "host-session", event: string, values: unknown[]) {
+  if (route === "host-connection") return connection(values[1])
   const handle = session(values[1])
   return event === "end" ? { session: handle, reason: parseSessionEndSnapshot({ ...(values[1] as object), reason: values[2] }).reason } : handle
 }
