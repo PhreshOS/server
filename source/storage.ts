@@ -1,7 +1,12 @@
 import {
   Storage,
   StorageFile,
+  parseProgramLogRecord,
+  parseSystemLogRecord,
   type FileStat,
+  type LogEvents,
+  type ProgramLogRecord,
+  type ProgramLogs,
   type ProgramSql,
   type ProgramStore,
   type StorageChange,
@@ -12,11 +17,14 @@ import {
   type StorageTransferOptions,
   type StorageWatchOptions,
   type StorageWriteOptions,
+  type SystemLogRecord,
+  type SystemLogs,
   type WritableContent
 } from "@phreshos/core"
 import { content } from "./content.js"
 import type { HandleAddress } from "./domain.js"
 import wire from "./wire.js"
+import Events from "./events.js"
 
 /** Program-owned storage transported through the Server boundary. */
 export function area(program: HandleAddress, which: "data" | "cache"): Storage {
@@ -218,5 +226,45 @@ export function sql(kind: "database" | "logs", program: HandleAddress): ProgramS
       const answer = await wire.request([kind, program, text, values]) as [Row[]]
       return answer[0]
     }
+  }
+}
+
+/** Read and observe one Program's captured Endpoint output. */
+export function programLogs(program: HandleAddress): ProgramLogs {
+  const database = sql("logs", program)
+  const events = new Events<LogEvents<ProgramLogRecord>, never>(
+    (event, listener, impossible) => wire.on("program-log", event, (...values) => listener(parseProgramLogRecord(values[1])), program.reference, impossible),
+    (listener, impossible) => wire.onAll("program-log", (event, ...values) => {
+      if (event === "log") listener(event, parseProgramLogRecord(values[1]))
+    }, program.reference, impossible)
+  )
+
+  return {
+    query: database.query,
+    subscribe: events.subscribe,
+    wait: events.wait,
+    events: events.events
+  }
+}
+
+/** Read and observe records produced by the PhreshOS System. */
+export function systemLogs(): SystemLogs {
+  const events = new Events<LogEvents<SystemLogRecord>, never>(
+    (event, listener, impossible) => wire.on("host-log", event, (...values) => listener(parseSystemLogRecord(values[1])), null, impossible),
+    (listener, impossible) => wire.onAll("host-log", (event, ...values) => {
+      if (event === "log") listener(event, parseSystemLogRecord(values[1]))
+    }, null, impossible)
+  )
+
+  return {
+    async query<Row = Record<string, unknown>>(statement: string | TemplateStringsArray, ...rest: unknown[]) {
+      const text = typeof statement === "string" ? statement : statement.raw.join("?")
+      const values = typeof statement === "string" ? (Array.isArray(rest[0]) ? rest[0] : []) : rest
+      const answer = await wire.request(["system-logs", text, values]) as [Row[]]
+      return answer[0]
+    },
+    subscribe: events.subscribe,
+    wait: events.wait,
+    events: events.events
   }
 }

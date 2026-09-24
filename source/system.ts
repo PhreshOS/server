@@ -36,10 +36,11 @@ import { uploads } from "./uploads.js"
 import ServerAppearance from "./appearance.js"
 import wire from "./wire.js"
 import { prepareService } from "./service.js"
-import { systemStorage } from "./storage.js"
+import { systemLogs, systemStorage } from "./storage.js"
 import shell from "./shell.js"
 import network from "./network.js"
 import { connection, session } from "./authentication.js"
+import { systemPermissions } from "./permission-requests.js"
 
 class SystemHandle implements CoreSystem {
   public readonly storage = systemStorage()
@@ -47,6 +48,8 @@ class SystemHandle implements CoreSystem {
   public readonly program: CoreSystemProgram = new SystemProgramHandle()
   public readonly process: CoreSystemProcess = new SystemProcessHandle()
   public readonly authentication: SystemAuthentication = new SystemAuthenticationHandle()
+  public readonly permissions = systemPermissions
+  public readonly logs = systemLogs()
   public readonly service: SystemService = new SystemServiceHandle()
   public readonly uploads = uploads
   public readonly network = network

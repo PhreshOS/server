@@ -127,6 +127,12 @@ test("package contract", async () => {
   assert.equal("fetch" in system, false)
   assert.equal("websocket" in system, false)
   assert.equal(typeof system.shell, "function")
+  assert.equal(typeof context.permissions.request, "function")
+  assert.equal(typeof context.permissions.timeout, "function")
+  assert.equal(typeof system.permissions.requests, "function")
+  assert.equal(typeof system.permissions.subscribe, "function")
+  assert.equal(typeof system.logs.query, "function")
+  assert.equal(typeof system.logs.subscribe, "function")
   assert.equal("subscribe" in system, false)
   const service = system.service.prepare({ program: "counter", process: "main", endpoint: "server" })
   const clientService = system.service.prepare({ program: "counter", process: "main", endpoint: "client" })
@@ -173,7 +179,7 @@ test("package contract", async () => {
     writeFileSync(
       join(consumer, "consumer.ts"),
       `import { context, system } from "@phreshos/server"
-  import { ClientEndpoint, ServerEndpoint, type Appearance, type Endpoint, type FileStat, type Process, type Program, type ServerService, type ShellEvent, type SystemUploads, type Upload, type WritableContent } from "@phreshos/core"
+  import { ClientEndpoint, ServerEndpoint, type Appearance, type Endpoint, type FileStat, type Permission, type PermissionRequest, type Process, type Program, type ServerService, type ShellEvent, type SystemUploads, type Upload, type WritableContent } from "@phreshos/core"
   // @ts-expect-error the runtime object is named context
   import { current } from "@phreshos/server"
   // @ts-expect-error shared domains are imported from Core, not republished by an environment SDK
@@ -208,6 +214,10 @@ test("package contract", async () => {
     return sender ? "endpoint" : "outside"
   })
   const program = await context.program()
+  const systemLogRows: Promise<Record<string, unknown>[]> = system.logs.query("select * from logs where level = ?", ["error"])
+  const systemLogStop = system.logs.subscribe("log", record => void record.level)
+  const programLogRows: Promise<Record<string, unknown>[]> = program.logs.query("select * from logs where process = ?", ["main"])
+  const programLogStop = program.logs.subscribe("log", record => void record.source)
   const hasAgent: boolean = program.hasAgent
   const agent: Promise<string | null> = program.agent()
   const definition = program.definition()
@@ -218,11 +228,20 @@ test("package contract", async () => {
   const storedAllows: Promise<boolean> = program.permissions.allows("network", ["https://api.example.com"])
   const allowedPermission: Promise<void> = program.permissions.allow("all")
   const deniedPermission: Promise<void> = program.permissions.deny("all")
-  const requestedPermission: Promise<import("@phreshos/core").Permission<"all">> = program.permissions.request("all")
+  // @ts-expect-error a Program permission handle makes owner decisions; only an Endpoint context creates requests
+  program.permissions.request("all")
   // @ts-expect-error Permission assignments are replaced or explicitly denied; they are never deleted.
   program.permissions.delete("all")
   // @ts-expect-error permission names are closed by the Core catalog
   program.permissions.get("files")
+  const effectiveAllows: Promise<boolean> = context.permissions.allows("network", ["https://api.example.com"])
+  const requestedPermission: Promise<Permission<"all">> = context.permissions.request("all", [])
+  const timedPermission: Promise<Permission<"all">> = context.permissions.timeout(120_000).request("all")
+  const pendingPermissionRequests: Promise<PermissionRequest[]> = system.permissions.requests()
+  const permissionRequestStop = system.permissions.subscribe("permissionRequest", request => void request.from)
+  const permissionResolveStop = system.permissions.subscribe("permissionResolve", result => void result.permission)
+  // @ts-expect-error a value-less permission accepts no string values
+  context.permissions.request("all", ["read"])
   const shared: Promise<Process> = program.findOrCreateProcess({
     name: "shared-server",
     server: { service: true },
@@ -273,7 +292,10 @@ test("package contract", async () => {
   void storedAllows
   void allowedPermission
   void deniedPermission
-  void requestedPermission
+  void systemLogRows
+  void systemLogStop
+  void programLogRows
+  void programLogStop
   void shared
   void stop
   void client

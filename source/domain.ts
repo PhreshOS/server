@@ -50,7 +50,7 @@ import {
 import Events, { stream } from "./events.js"
 import Deadline from "./deadline.js"
 import HandleRegistry from "./handle-registry.js"
-import { area, sql, store } from "./storage.js"
+import { area, programLogs, sql, store } from "./storage.js"
 import startup from "./startup.js"
 import { programPermissions } from "./permissions.js"
 import wire from "./wire.js"
@@ -103,7 +103,7 @@ class ProgramHandle extends CoreProgram {
     this.data = area(this.address, "data")
     this.cache = area(this.address, "cache")
     this.store = store(this.address)
-    this.logs = sql("logs", this.address)
+    this.logs = programLogs(this.address)
     this.database = sql("database", this.address)
     this.startup = startup(this.address)
     this.permissions = programPermissions(this.address)
