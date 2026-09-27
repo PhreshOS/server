@@ -23,6 +23,7 @@ import {
 } from "./domain.js"
 import Events from "./events.js"
 import wire from "./wire.js"
+import clientMemory from "./client-memory.js"
 import { contextPermissions } from "./permissions.js"
 
 /** The executing Process's canonical Client Endpoint handle. */
@@ -47,6 +48,7 @@ class ContextClientHandle extends ClientEndpoint {
   public readonly traffic = new TrafficHandle(null, "client")
   public readonly lifecycle: EndpointLifecycle = endpointLifecycle(currentAddress, "client")
   public readonly window = window(currentAddress)
+  public readonly memory = clientMemory(null)
 
   public constructor(private readonly owner: () => Promise<Process>) {
     super()

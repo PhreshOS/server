@@ -54,6 +54,7 @@ import { area, programLogs, sql, store } from "./storage.js"
 import startup from "./startup.js"
 import { programPermissions } from "./permissions.js"
 import wire from "./wire.js"
+import clientMemory from "./client-memory.js"
 
 export type { HandleAddress }
 
@@ -162,11 +163,11 @@ class ProgramHandle extends CoreProgram {
     return answer[0].map(record => process(record))
   }
 
-  public async firstProcess() {
+  public async oldestProcess() {
     return chronological(await this.processes())[0] ?? null
   }
 
-  public async lastProcess() {
+  public async newestProcess() {
     return chronological(await this.processes()).at(-1) ?? null
   }
 
@@ -434,12 +435,14 @@ class ClientEndpointHandle extends CoreClientEndpoint {
   public readonly traffic: TrafficHandle
   public readonly lifecycle: EndpointLifecycle
   public readonly window: Window
+  public readonly memory
 
   public constructor(private readonly owner: ProcessHandle) {
     super()
     this.traffic = new TrafficHandle(owner.address, "client")
     this.lifecycle = endpointLifecycle(owner.address, "client")
     this.window = window(async () => owner.address)
+    this.memory = clientMemory(owner.address)
     const events = endpointEvents(owner.address, "client")
     this.subscribe = events.subscribe
     this.wait = events.wait
