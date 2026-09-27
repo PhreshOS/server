@@ -205,16 +205,62 @@ function parseEntry(value: unknown): { kind: "storage" | "file", path: string[] 
 }
 
 export function store(program: HandleAddress): ProgramStore {
+  type Snapshot = { run: string, revision: number, value: unknown }
+  type Comparison = { changed: boolean, snapshot: Snapshot }
+  const snapshots = new Map<string, Snapshot>()
+  const local = new Set<(key: string, snapshot: Snapshot) => void>()
+  const notify = (key: string, snapshot: Snapshot) => { for (const listener of local) listener(key, snapshot) }
   async function ask<Result>(operation: string, ...values: unknown[]) {
     const answer = await wire.request(["store", program, operation, ...values]) as [Result]
     return answer[0]
   }
   return {
     get: <Value>(key: string) => ask<Value | undefined>("get", key),
-    set: <Value>(key: string, value: Value, ttl?: number) => ask<boolean>("set", key, value, ttl),
-    delete: (key: string | string[]) => ask<boolean>("delete", key),
+    async set<Value>(key: string, value: Value, ttl?: number) {
+      const result = await ask<boolean>("set", key, value, ttl)
+      snapshots.delete(key)
+      return result
+    },
+    async getOrSet<Value>(key: string, initial: Value) {
+      const snapshot = await ask<Snapshot>("getOrSet", key, initial)
+      notify(key, snapshot)
+      return snapshot.value as Value
+    },
+    async update<Value>(key: string, updater: (current: Value | undefined) => Value) {
+      let snapshot = snapshots.get(key) ?? await ask<Snapshot>("snapshot", key)
+      for (;;) {
+        const next = updater(snapshot.value as Value | undefined)
+        const result = await ask<Comparison>("compareAndSet", key, next, snapshot)
+        snapshots.set(key, result.snapshot)
+        notify(key, result.snapshot)
+        if (result.changed) return result.snapshot.value as Value
+        snapshot = result.snapshot
+      }
+    },
+    async delete(key: string | string[]) {
+      const result = await ask<boolean>("delete", key)
+      for (const name of Array.isArray(key) ? key : [key]) snapshots.delete(name)
+      return result
+    },
     has: (key: string) => ask<boolean>("has", key),
-    clear: () => ask<void>("clear")
+    async clear() { await ask<void>("clear"); snapshots.clear() },
+    subscribe<Value>(key: string, subscriber: (value: Value | undefined) => unknown) {
+      let active = true
+      let latest: Snapshot | undefined
+      const deliver = (snapshot: Snapshot) => {
+        if (!active || (latest?.run === snapshot.run && latest.revision >= snapshot.revision)) return
+        latest = snapshot
+        snapshots.set(key, snapshot)
+        subscriber(snapshot.value as Value | undefined)
+      }
+      const stop = wire.on("program-host", "storeChange", (reference, changedKey, snapshot) => {
+        if (reference === program.reference && changedKey === key) deliver(snapshot as Snapshot)
+      }, program.reference)
+      const localListener = (changedKey: string, snapshot: Snapshot) => { if (changedKey === key) deliver(snapshot) }
+      local.add(localListener)
+      void ask<Snapshot>("snapshot", key).then(deliver).catch(() => undefined)
+      return () => { active = false; local.delete(localListener); stop() }
+    }
   }
 }
 
