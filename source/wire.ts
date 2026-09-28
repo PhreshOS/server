@@ -506,7 +506,7 @@ function endpointTransport(): EndpointTransport {
   }
 }
 
-function socketTransport(network: NetworkModule, address: string, token: string): EndpointTransport {
+export function socketTransport(network: NetworkModule, address: string, token: string): EndpointTransport {
   const maximumFrameSize = 16 * 1024 * 1024
   const reader = new FrameReader(maximumFrameSize)
   const messages = new Set<(message: unknown) => void>()
@@ -516,9 +516,10 @@ function socketTransport(network: NetworkModule, address: string, token: string)
   let connected = false
   let writes = Promise.resolve()
 
+  // A write that fails, such as a frame over the limit, is dropped on its own: the chain goes on, so
+  // every later message still leaves.
   const write = (bytes: Uint8Array) => {
-    writes = writes.then(() => writeFrame(socket, bytes, maximumFrameSize))
-    writes.catch(() => undefined)
+    writes = writes.then(() => writeFrame(socket, bytes, maximumFrameSize)).catch(() => undefined)
   }
 
   socket.on("connect", () => {
