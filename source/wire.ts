@@ -3,6 +3,7 @@ import Deadline from "./deadline.js"
 import { defaultTimeout } from "./events.js"
 import type { HandleAddress } from "./domain.js"
 import { FrameReader, writeFrame } from "@the-link/ipc/framing"
+import { StreamRelay } from "@the-link/core"
 import { deserialize, serialize } from "@the-link/messagepack"
 
 type Handler = (...values: unknown[]) => unknown
@@ -48,6 +49,9 @@ class Wire {
 
   private readonly transport = endpointTransport()
 
+  /** Streams in messages cross as references; their chunks follow as boundary relay messages. */
+  private readonly relay = new StreamRelay(message => this.transport.send(serialize(["boundary", "relay", ...message])))
+
   public readonly signal = this.lifetime.signal
 
   public constructor() {
@@ -57,7 +61,7 @@ class Wire {
       if (!bytes) return
 
       let decoded: unknown
-      try { decoded = deserialize(bytes) }
+      try { decoded = deserialize(bytes, { streams: this.relay }) }
       catch { return }
       if (!Array.isArray(decoded) || typeof decoded[0] !== "string") return
 
@@ -65,6 +69,8 @@ class Wire {
 
       if (route === "boundary") {
         const [operation, ...rest] = values
+
+        if (operation === "relay") this.relay.receive(rest)
 
         if (operation === "forget" && typeof rest[0] === "string") this.forgetIncoming(rest[0])
 
@@ -98,7 +104,7 @@ class Wire {
   }
 
   public send(route: string, ...values: unknown[]) {
-    this.transport.send(serialize([route, ...values]))
+    this.transport.send(serialize([route, ...values], { streams: this.relay }))
   }
 
   public request(values: unknown[], timeout = defaultTimeout): Promise<unknown> {
@@ -463,6 +469,7 @@ class Wire {
 
     const error = new Error("This System connection is closed")
     this.lifetime.abort(error)
+    this.relay.close(error)
 
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timer)
