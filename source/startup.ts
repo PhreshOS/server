@@ -10,12 +10,12 @@ export default function startup(program: HandleAddress): ProgramStartup {
       return answer[0]
     },
 
-    async enable(launch: Launch = {}) {
-      await wire.request(["startup", program, "enable", launch])
+    async set(launch: Launch = {}) {
+      await wire.request(["startup", program, "set", launch])
     },
 
-    async disable() {
-      await wire.request(["startup", program, "disable"])
+    async remove() {
+      await wire.request(["startup", program, "remove"])
     }
   }
 }

@@ -1,3 +1,4 @@
+import { parseOpenTarget } from "@phreshos/core"
 import type {
   Answerer as CoreAnswerer,
   ServerContext as CoreServerContext,
@@ -135,6 +136,11 @@ class ServerContextHandle extends Events<ContextEvents<{}>, ContextMessage> impl
   public async options(name?: string) {
     const process = await owner()
     return name === undefined ? process.options() : process.options(name)
+  }
+
+  public async opened() {
+    const [opened] = await wire.request(["opened"]) as [unknown]
+    return opened === null ? null : parseOpenTarget(opened)
   }
 
   public async stop() { await wire.request(["stop-current"]) }

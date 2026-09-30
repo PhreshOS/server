@@ -1,4 +1,7 @@
 import {
+  parseSystemAbout,
+  parseOpenTarget,
+  type OpenTarget,
   parseSessionEndSnapshot,
   parseSystemProgramListOptions,
   parseSystemServiceListOptions,
@@ -39,6 +42,7 @@ import {
 import { uploads } from "./uploads.js"
 import ServerAppearance from "./appearance.js"
 import wire from "./wire.js"
+import { systemOpening } from "./opening.js"
 import { prepareService } from "./service.js"
 import { systemLogs, systemStorage } from "./storage.js"
 import shell from "./shell.js"
@@ -57,6 +61,17 @@ class SystemHandle implements CoreSystem {
   public readonly service: SystemService = new SystemServiceHandle()
   public readonly uploads = uploads
   public readonly network = network
+
+  public readonly opening = systemOpening
+
+  public async open(target: OpenTarget) {
+    await wire.request(["open", parseOpenTarget(target)])
+  }
+
+  public async about() {
+    const [about] = await wire.request(["about"]) as [unknown]
+    return parseSystemAbout(about)
+  }
 
   public execute<Request extends ExecuteRequest>(request: Request): Promise<ExecuteResult<Request>> {
     return executeRequest(this, request)
