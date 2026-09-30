@@ -1,6 +1,6 @@
 {
   "name": "@phreshos/server",
-  "version": "0.1.60",
+  "version": "0.1.61",
   "description": "The SDK used by a Program's server endpoint.",
   "type": "module",
   "main": "dist/main.js",
@@ -46,7 +46,7 @@
     "test": "vitest run --project default"
   },
   "peerDependencies": {
-    "@phreshos/core": "^0.1.65"
+    "@phreshos/core": "^0.1.68"
   },
   "dependencies": {
     "@the-link/core": "^0.4.0",
@@ -54,7 +54,7 @@
     "@the-link/messagepack": "^0.2.0"
   },
   "devDependencies": {
-    "@phreshos/core": "^0.1.65",
+    "@phreshos/core": "^0.1.68",
     "@types/node": "^26.2.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
