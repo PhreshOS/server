@@ -5,7 +5,7 @@ import {
   type ServiceLifecycleEvents,
   type ServiceLifecycle,
   type ServiceProgramMetadata,
-  type ProgramIconSize,
+  type IconSize,
   type Subscribable,
   type ServiceAddress
 } from "@phreshos/core"
@@ -53,7 +53,7 @@ class ServiceHandle {
     return parseServiceProgramMetadata(value)
   }
 
-  public async programIcon(size: ProgramIconSize = "medium") {
+  public async programIcon(size: IconSize = "medium") {
     const [value] = await wire.request(["service-program-icon", this.serviceAddress, size]) as [unknown]
     return parseServiceProgramIcon(value)
   }
@@ -80,7 +80,7 @@ class ServerHandler<EventsMap extends object = {}, Fallback = unknown> extends S
   public override address() { return this.serviceAddress }
   public override available() { return this.service.available() }
   public override programMetadata() { return this.service.programMetadata() }
-  public override programIcon(size?: ProgramIconSize) { return this.service.programIcon(size) }
+  public override programIcon(size?: IconSize) { return this.service.programIcon(size) }
 
   public override waitReady(timeout?: number) { return this.service.waitReady(timeout) }
 
@@ -128,7 +128,7 @@ class ClientHandler<EventsMap extends object = {}, Fallback = unknown> extends C
   public override address() { return this.serviceAddress }
   public override available() { return this.service.available() }
   public override programMetadata() { return this.service.programMetadata() }
-  public override programIcon(size?: ProgramIconSize) { return this.service.programIcon(size) }
+  public override programIcon(size?: IconSize) { return this.service.programIcon(size) }
   public override waitReady(timeout?: number) { return this.service.waitReady(timeout) }
 }
 
