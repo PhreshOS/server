@@ -10,13 +10,13 @@
         "@the-link/messagepack": "^0.2.0",
       },
       "devDependencies": {
-        "@phreshos/core": "^0.1.68",
+        "@phreshos/core": "^0.1.69",
         "@types/node": "^26.2.0",
         "typescript": "^6.0.3",
         "vitest": "^4.1.10",
       },
       "peerDependencies": {
-        "@phreshos/core": "^0.1.68",
+        "@phreshos/core": "^0.1.69",
       },
     },
   },
@@ -27,7 +27,7 @@
 
     "@oxc-project/types": ["@oxc-project/types@0.149.0", "", {}, "sha512-Efcc+iF0j3Bf67YjEqIqWXbX5XddXoK/Mw4K1/JuXwRCZ8N16VR7iT23nlCc9XrveFVh/E5Rqs2StT0V8v9LdA=="],
 
-    "@phreshos/core": ["@phreshos/core@0.1.68", "", { "dependencies": { "zod": "^4.6.5" } }, "sha512-0dkpuzm0MV2CoRnyvjUrtP/6AZKillCRTqhJknFGMR5FVxW6BPflGDraMyl3G33RtKqqOl+Y0o+ZX4zmCXkPCg=="],
+    "@phreshos/core": ["@phreshos/core@0.1.69", "", { "dependencies": { "zod": "^4.6.5" } }, "sha512-xr3+UakR/WQhGf/5QNPanlbKIPZGxMfu4vxX1g5sU11jzFQc1V5EHtXGo3gz8oXAaeIbcANvoPm4lmGrrlZ3bw=="],
 
     "@rolldown/binding-android-arm-eabi": ["@rolldown/binding-android-arm-eabi@1.2.8", "", { "os": "android", "cpu": "arm" }, "sha512-tN5aztYkKCte4i5SIrrz5yK/HMjEuCqCSCJa418jOV8tZ1cBY3YF2otxB1ktPxzsLA1BeTqwapK0bfjxNvHJVw=="],
 
