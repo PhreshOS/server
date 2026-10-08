@@ -106,8 +106,8 @@ class ProgramHandle extends CoreProgram {
     this.store = store(this.address)
     this.logs = programLogs(this.address)
     this.database = sql("database", this.address)
-    this.startup = startup(this.address)
-    this.permissions = programPermissions(this.address)
+    this.startup = startup(this.address, change("program-host", record.reference, "changeStartup", values => values[0] as Launch | null))
+    this.permissions = programPermissions(this.address, change("program-host", record.reference, "changePermissions", values => parsePermissions(values[0])))
     const events = scoped<ProgramEvents, never>("program-host", record.reference, programEvent)
     this.subscribe = events.subscribe
     this.wait = events.wait
@@ -143,9 +143,7 @@ class ProgramHandle extends CoreProgram {
     return answer[0]
   }
 
-  public async pin() { await wire.request(["pinned", this.address, "pin"]) }
-
-  public async unpin() { await wire.request(["pinned", this.address, "unpin"]) }
+  public async pin(pinned = true) { await wire.request(["pinned", this.address, pinned ? "pin" : "unpin"]) }
 
   public async agent() {
     if (!this.hasAgent) return null
@@ -556,6 +554,22 @@ export function scoped<Definitions extends object = {}, Fallback = unknown>(rout
   )
 }
 
+/** One value's `change`, carried on its owner's route under the owner's own event name. */
+export function change<Value>(route: string, subject: string, event: string, convert: (values: unknown[]) => Value) {
+  const follow = (listener: (value: Value) => void, impossible?: (error: Error) => void) => wire.on(route, event, (...values) => {
+    const message = unscoped(subject, values)
+    if (message) listener(convert(message))
+  }, subject, impossible)
+
+  return new Events<{ change: Value }, never>(
+    (name, listener, impossible) => {
+      if (name !== "change") throw new Error(`There is no "${name}" event here`)
+      return follow(listener, impossible)
+    },
+    (listener, impossible) => follow(value => listener("change", value), impossible)
+  )
+}
+
 /** Destinationless events originating from one Endpoint handle. */
 export function endpointEvents(target: HandleAddress | null, half: "server" | "client") {
   return new Events(
@@ -618,8 +632,7 @@ function programEvent(event: string, values: unknown[]): unknown {
   if (event === "processCreate") return process(values[0])
   if (event === "processExit") return { process: process(values[0]), ...exit(values[1], values[2]) }
   if (event === "uninstall") return { purge: values[0] === true }
-  if (event === "pinned") return values[0] === true
-  if (event === "permissions") return parsePermissions(values[0])
+  if (event === "pin") return values[0] === true
   return undefined
 }
 

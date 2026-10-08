@@ -4,19 +4,24 @@ import {
   type ContextPermissions,
   type PermissionName,
   type ProgramPermissions,
+  type ProgramPermissionsEvents,
   type PermissionRequestInput,
+  type Subscribable,
   type TimedContextPermissions
 } from "@phreshos/core"
 import type { HandleAddress } from "./domain.js"
 import wire from "./wire.js"
 
 /** Bind authoritative permission state to one exact Program handle. */
-export function programPermissions(program?: HandleAddress): ProgramPermissions {
+export function programPermissions(program: HandleAddress, changes: Subscribable<ProgramPermissionsEvents, never>): ProgramPermissions {
   const operate = <Name extends PermissionName>(operation: "all" | "get" | "allows" | "allow" | "deny", name?: Name, permission?: PermissionRequestInput<Name>) => (
     wire.request(["program-permissions", program, operation, name, permission])
   )
 
   return {
+    subscribe: changes.subscribe,
+    wait: changes.wait,
+    events: changes.events,
     async get(name) { return parsePermission(name, (await operate("get", name) as [unknown])[0]) },
     async all() { return parsePermissions((await operate("all") as [unknown])[0]) },
     async allows(name, permission = true) { return (await operate("allows", name, permission) as [unknown])[0] === true },

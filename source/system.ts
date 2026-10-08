@@ -13,6 +13,7 @@ import {
   type ExecuteRequest,
   type ExecuteResult,
   type IconSize,
+  type Launch,
   type ServiceAddress,
   type System as CoreSystem,
   type AuthenticationCredentials,
@@ -241,11 +242,15 @@ function systemProgramEvent(event: string, values: unknown[]): unknown {
     return { program: program(values[1]), purge: values[2] === true }
   }
 
-  if (event === "pinned") {
+  if (event === "pin") {
     return { program: program(values[1]), pinned: values[2] === true }
   }
 
-  if (event === "permissions") {
+  if (event === "changeStartup") {
+    return { program: program(values[1]), launch: values[2] as Launch | null }
+  }
+
+  if (event === "changePermissions") {
     const handle = program(values[1])
     return { program: handle, permissions: parsePermissions((values[1] as { permissions?: unknown }).permissions) }
   }
