@@ -79,6 +79,7 @@ test("process contract", async () => {
         name: "Program",
         version: "0.0.0",
         description: null,
+        website: null,
         categories: [],
         keywords: [],
         opens: [],

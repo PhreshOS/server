@@ -119,6 +119,7 @@ class ProgramHandle extends CoreProgram {
   public get assetId() { return this.record.assetId }
   public get version() { return this.record.version }
   public get description() { return this.record.description }
+  public get website() { return this.record.website }
   public get categories() { return this.record.categories }
   public get keywords() { return this.record.keywords }
   public get opens() { return this.record.opens }
@@ -275,8 +276,8 @@ class ProcessHandle extends CoreProcess {
   public readonly server: ServerEndpoint
   public readonly client: ClientEndpoint
   private readonly ownerProgram: Program
-  private readonly launchOptions: Readonly<Record<string, string>>
-  private readonly openedTarget: OpenTarget | null
+  public readonly options: Readonly<Record<string, string>>
+  public readonly opened: OpenTarget | null
 
   public constructor(record: ProcessRecord, endpoints: { server?: ServerEndpoint, client?: ClientEndpoint } = {}) {
     super()
@@ -285,8 +286,8 @@ class ProcessHandle extends CoreProcess {
     this.name = record.name
     this.startedAt = new Date(record.startedAt)
     this.ownerProgram = program(record.program)
-    this.launchOptions = Object.freeze({ ...record.options })
-    this.openedTarget = record.opened
+    this.options = Object.freeze({ ...record.options })
+    this.opened = record.opened
     this.server = endpointHandle(this, "server", endpoints.server) as ServerEndpoint
     this.client = endpointHandle(this, "client", endpoints.client) as ClientEndpoint
 
@@ -304,13 +305,6 @@ class ProcessHandle extends CoreProcess {
     return answer[0] ? process(answer[0]) : null
   }
 
-  public options<Options extends object = Readonly<Record<string, string>>>(): Promise<Readonly<Options>>
-  public options<Option extends string = string>(name: string): Promise<Option | undefined>
-  public async options(name?: string) {
-    return name === undefined ? this.launchOptions : this.launchOptions[name]
-  }
-
-  public async opened() { return this.openedTarget }
 
   public async exit() {
     await wire.request(["exit", this.address])
