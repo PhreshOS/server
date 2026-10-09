@@ -97,6 +97,7 @@ test("worker contract", async () => {
         client: null
       },
       options: { "worker-test": "worker-value" },
+      opened: null,
       startedAt: new Date(0),
       server: { service: false },
       client: null

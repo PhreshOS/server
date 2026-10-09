@@ -45,7 +45,8 @@ import {
   type Window as CoreWindow,
   type WindowGeometry,
   type WindowEvents,
-  type WindowState
+  type WindowState,
+  type OpenTarget
 } from "@phreshos/core"
 import Events, { stream } from "./events.js"
 import Deadline from "./deadline.js"
@@ -275,6 +276,7 @@ class ProcessHandle extends CoreProcess {
   public readonly client: ClientEndpoint
   private readonly ownerProgram: Program
   private readonly launchOptions: Readonly<Record<string, string>>
+  private readonly openedTarget: OpenTarget | null
 
   public constructor(record: ProcessRecord, endpoints: { server?: ServerEndpoint, client?: ClientEndpoint } = {}) {
     super()
@@ -284,6 +286,7 @@ class ProcessHandle extends CoreProcess {
     this.startedAt = new Date(record.startedAt)
     this.ownerProgram = program(record.program)
     this.launchOptions = Object.freeze({ ...record.options })
+    this.openedTarget = record.opened
     this.server = endpointHandle(this, "server", endpoints.server) as ServerEndpoint
     this.client = endpointHandle(this, "client", endpoints.client) as ClientEndpoint
 
@@ -306,6 +309,8 @@ class ProcessHandle extends CoreProcess {
   public async options(name?: string) {
     return name === undefined ? this.launchOptions : this.launchOptions[name]
   }
+
+  public async opened() { return this.openedTarget }
 
   public async exit() {
     await wire.request(["exit", this.address])
