@@ -1,6 +1,7 @@
 import {
   OpenRequest as CoreOpenRequest,
   parseOpenRequestSnapshot,
+  parseOpenType,
   parseOpeningDefaults,
   type OpenRequestEvents,
   type OpenRequestSnapshot,
@@ -77,12 +78,13 @@ function requestHandle(value: unknown) {
 class OpeningRegistry extends Events<SystemOpeningEvents, never> implements SystemOpening {
   public constructor() {
     super(
-      (event, listener, impossible) => wire.on("host-opening", event === "openRequest" ? "request" : "resolve", (...values) => {
+      (event, listener, impossible) => wire.on("host-opening", wireEvents[event as keyof SystemOpeningEvents], (...values) => {
         listener(openingEvent(event as keyof SystemOpeningEvents, values))
       }, null, impossible),
       (listener, impossible) => wire.onAll("host-opening", (event, ...values) => {
         if (event === "request") listener("openRequest", openingEvent("openRequest", values))
         if (event === "resolve") listener("openResolve", openingEvent("openResolve", values))
+        if (event === "changeDefault") listener("changeDefault", openingEvent("changeDefault", values))
       }, null, impossible)
     )
   }
@@ -106,7 +108,11 @@ class OpeningRegistry extends Events<SystemOpeningEvents, never> implements Syst
   }
 }
 
+/** The route each opening event travels by. */
+const wireEvents = { openRequest: "request", openResolve: "resolve", changeDefault: "changeDefault" } as const satisfies Record<keyof SystemOpeningEvents, string>
+
 function openingEvent(event: keyof SystemOpeningEvents, values: unknown[]) {
+  if (event === "changeDefault") return { type: parseOpenType(values[1]), program: chosenProgram(values[2]) }
   const request = requestHandle(values[1])
   if (event === "openRequest") return request
   return { request, program: chosenProgram(values[2]) }
