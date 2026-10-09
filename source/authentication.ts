@@ -2,8 +2,10 @@ import {
   Connection as CoreConnection,
   Session as CoreSession,
   parseConnectionSnapshot,
+  parseConnectionState,
   parseSessionEndSnapshot,
   parseSessionSnapshot,
+  parseSessionState,
   type ConnectionEvents,
   type ConnectionSnapshot,
   type SessionEvents,
@@ -20,10 +22,12 @@ class ConnectionHandle extends CoreConnection {
   public readonly wait: CoreConnection["wait"]
   public readonly events: CoreConnection["events"]
   public readonly identity: string
+  public readonly connectedAt: Date
 
   public constructor(snapshot: ConnectionSnapshot) {
     super()
     this.identity = snapshot.identity
+    this.connectedAt = snapshot.connectedAt
     const events = scoped<ConnectionEvents, never>("connection-host", this.identity, connectionEvent)
     this.subscribe = events.subscribe
     this.wait = events.wait
@@ -32,7 +36,7 @@ class ConnectionHandle extends CoreConnection {
 
   public async connected() {
     const [snapshot] = await wire.request(["host-connection-state", this.identity]) as [unknown]
-    return parseConnectionSnapshot(snapshot).connected
+    return parseConnectionState(snapshot).connected
   }
 
   public async session() {
@@ -51,10 +55,12 @@ class SessionHandle extends CoreSession {
   public readonly wait: CoreSession["wait"]
   public readonly events: CoreSession["events"]
   public readonly identity: string
+  public readonly createdAt: Date
 
   public constructor(snapshot: SessionSnapshot) {
     super()
     this.identity = snapshot.identity
+    this.createdAt = snapshot.createdAt
     const events = scoped<SessionEvents, never>("session-host", this.identity, (event, values) => sessionEvent(this.identity, event, values))
     this.subscribe = events.subscribe
     this.wait = events.wait
@@ -62,8 +68,16 @@ class SessionHandle extends CoreSession {
   }
 
   public async valid() {
-    const [snapshot] = await wire.request(["host-session-state", this.identity]) as [unknown]
-    return parseSessionSnapshot(snapshot).valid
+    return (await this.state()).valid
+  }
+
+  public async lastActiveAt() {
+    return (await this.state()).lastActiveAt
+  }
+
+  private async state() {
+    const [state] = await wire.request(["host-session-state", this.identity]) as [unknown]
+    return parseSessionState(state)
   }
 
   public async connections() {
