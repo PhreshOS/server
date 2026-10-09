@@ -88,6 +88,10 @@ test("worker contract", async () => {
         name: "Worker Program",
         version: "0.0.0",
         description: null,
+        categories: [],
+        keywords: [],
+        opens: [],
+        declaredPermissions: {},
         hasAgent: false,
         server: { start: true, service: false },
         client: null

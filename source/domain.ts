@@ -118,6 +118,10 @@ class ProgramHandle extends CoreProgram {
   public get assetId() { return this.record.assetId }
   public get version() { return this.record.version }
   public get description() { return this.record.description }
+  public get categories() { return this.record.categories }
+  public get keywords() { return this.record.keywords }
+  public get opens() { return this.record.opens }
+  public get declaredPermissions() { return this.record.declaredPermissions }
   public get hasAgent() { return this.record.hasAgent }
   public get server() { return this.record.server }
   public get client() { return this.record.client }
