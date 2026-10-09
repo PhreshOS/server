@@ -228,6 +228,7 @@ test("package contract", async () => {
   const storedAllows: Promise<boolean> = program.permissions.allows("network", ["https://api.example.com"])
   const allowedPermission: Promise<void> = program.permissions.allow("all")
   const deniedPermission: Promise<void> = program.permissions.deny("all")
+  const resetPermission: Promise<void> = program.permissions.reset("all")
   // @ts-expect-error a Program permission handle makes owner decisions; only an Endpoint context creates requests
   program.permissions.request("all")
   // @ts-expect-error Permission assignments are replaced or explicitly denied; they are never deleted.
@@ -292,6 +293,7 @@ test("package contract", async () => {
   void storedAllows
   void allowedPermission
   void deniedPermission
+  void resetPermission
   void systemLogRows
   void systemLogStop
   void programLogRows

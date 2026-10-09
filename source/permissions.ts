@@ -14,7 +14,7 @@ import wire from "./wire.js"
 
 /** Bind authoritative permission state to one exact Program handle. */
 export function programPermissions(program: HandleAddress, changes: Subscribable<ProgramPermissionsEvents, never>): ProgramPermissions {
-  const operate = <Name extends PermissionName>(operation: "all" | "get" | "allows" | "allow" | "deny", name?: Name, permission?: PermissionRequestInput<Name>) => (
+  const operate = <Name extends PermissionName>(operation: "all" | "get" | "allows" | "allow" | "deny" | "reset", name?: Name, permission?: PermissionRequestInput<Name>) => (
     wire.request(["program-permissions", program, operation, name, permission])
   )
 
@@ -26,7 +26,8 @@ export function programPermissions(program: HandleAddress, changes: Subscribable
     async all() { return parsePermissions((await operate("all") as [unknown])[0]) },
     async allows(name, permission = true) { return (await operate("allows", name, permission) as [unknown])[0] === true },
     async allow(name, permission = true) { await operate("allow", name, permission) },
-    async deny(name) { await operate("deny", name) }
+    async deny(name) { await operate("deny", name) },
+    async reset(name) { await operate("reset", name) }
   }
 }
 
