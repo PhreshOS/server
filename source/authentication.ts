@@ -23,11 +23,13 @@ class ConnectionHandle extends CoreConnection {
   public readonly events: CoreConnection["events"]
   public readonly identity: string
   public readonly connectedAt: Date
+  public readonly device: string | null
 
   public constructor(snapshot: ConnectionSnapshot) {
     super()
     this.identity = snapshot.identity
     this.connectedAt = snapshot.connectedAt
+    this.device = snapshot.device
     const events = scoped<ConnectionEvents, never>("connection-host", this.identity, connectionEvent)
     this.subscribe = events.subscribe
     this.wait = events.wait
@@ -56,11 +58,13 @@ class SessionHandle extends CoreSession {
   public readonly events: CoreSession["events"]
   public readonly identity: string
   public readonly createdAt: Date
+  public readonly device: string | null
 
   public constructor(snapshot: SessionSnapshot) {
     super()
     this.identity = snapshot.identity
     this.createdAt = snapshot.createdAt
+    this.device = snapshot.device
     const events = scoped<SessionEvents, never>("session-host", this.identity, (event, values) => sessionEvent(this.identity, event, values))
     this.subscribe = events.subscribe
     this.wait = events.wait
