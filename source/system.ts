@@ -1,6 +1,8 @@
 import {
   parseSystemAbout,
+  parseOpenOptions,
   parseOpenTarget,
+  type OpenOptions,
   type OpenTarget,
   parseSessionEndSnapshot,
   parseSystemProgramListOptions,
@@ -66,8 +68,8 @@ class SystemHandle implements CoreSystem {
 
   public readonly opening = systemOpening
 
-  public async open(target: OpenTarget) {
-    await wire.request(["open", parseOpenTarget(target)])
+  public async open(target: OpenTarget, options?: OpenOptions) {
+    await wire.request(["open", parseOpenTarget(target), parseOpenOptions(options)])
   }
 
   public async about() {
