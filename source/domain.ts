@@ -144,9 +144,9 @@ class ProgramHandle extends CoreProgram {
     return parseProgramDefinition(answer[0])
   }
 
-  public async pinned() {
-    const answer = await wire.request(["pinned", this.address, "get"]) as [boolean]
-    return answer[0]
+  public async pinnedAt() {
+    const answer = await wire.request(["pinned", this.address, "get"]) as [unknown]
+    return pinTime(answer[0])
   }
 
   public async pin(pinned = true) { await wire.request(["pinned", this.address, pinned ? "pin" : "unpin"]) }
@@ -635,7 +635,7 @@ function programEvent(event: string, values: unknown[]): unknown {
   if (event === "processCreate") return process(values[0])
   if (event === "processExit") return { process: process(values[0]), ...exit(values[1], values[2]) }
   if (event === "uninstall") return { purge: values[0] === true }
-  if (event === "pin") return values[0] === true
+  if (event === "pin") return pinTime(values[0])
   return undefined
 }
 
@@ -703,3 +703,8 @@ export const ServerEndpoint = CoreServerEndpoint
 
 /** Runtime constructor used to identify and type Server-visible Client Endpoint handles. */
 export const ClientEndpoint = CoreClientEndpoint
+
+/** A pin time as it travels, ISO text, as the time it names; anything else is no pin. */
+export function pinTime(value: unknown): Date | null {
+  return typeof value === "string" ? new Date(value) : null
+}
