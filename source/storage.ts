@@ -95,6 +95,7 @@ class RemoteStorage extends Storage {
   }
   public delete() { return this.boundary.ask<void>("delete-storage", this.parts) }
   public clear() { return this.boundary.ask<void>("clear", this.parts) }
+  public size() { return this.boundary.ask<number>("size", this.parts) }
   public space() { return this.boundary.ask<StorageSpace>("space", this.parts) }
   public watch(options: StorageWatchOptions = {}) { return this.boundary.watch(this.parts, { recursive: options.recursive }, options.signal) }
 }

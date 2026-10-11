@@ -196,6 +196,13 @@ class ProgramHandle extends CoreProgram {
     const answer = await wire.request(["program-exit-processes", this.address]) as [string[]]
     return answer[0]
   }
+  public async clearStorage() { await wire.request(["program-clear-storage", this.address]) }
+
+  public async storageSize() {
+    const answer = await wire.request(["program-storage-size", this.address]) as [number]
+    return answer[0]
+  }
+
 
   public async *runProcess(launch: Launch = {}, options: ProgramProcessRunOptions = {}) {
     for await (const value of wire.stream(["run", this.address, launch], undefined, options.signal)) {
