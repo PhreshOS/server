@@ -76,6 +76,7 @@ test("process contract", async () => {
         reference: "program-reference",
         identity: "program",
         assetId: "program-assets",
+        createdAt: "2026-10-11T00:00:00.000Z",
         name: "Program",
         version: "0.0.0",
         description: null,

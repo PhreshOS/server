@@ -38,7 +38,7 @@ import type { ClientService, ServerService } from "./service.js"
 import Events from "./events.js"
 import {
   exit,
-  pinTime,
+  timeOrNull,
   process,
   program,
   type ProcessRecord,
@@ -246,7 +246,7 @@ function systemProgramEvent(event: string, values: unknown[]): unknown {
   }
 
   if (event === "pin") {
-    return { program: program(values[1]), pinnedAt: pinTime(values[2]) }
+    return { program: program(values[1]), pinnedAt: timeOrNull(values[2]) }
   }
 
   if (event === "changeStartup") {

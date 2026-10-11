@@ -88,6 +88,7 @@ class ProgramHandle extends CoreProgram {
   public readonly events: CoreProgram["events"]
   public readonly identity: string
   public readonly reference: string
+  public readonly createdAt: Date
   public readonly data: Storage
   public readonly cache: Storage
   public readonly store
@@ -101,6 +102,7 @@ class ProgramHandle extends CoreProgram {
     super()
     this.identity = record.identity
     this.reference = record.reference
+    this.createdAt = new Date(record.createdAt)
     this.record = record
     this.data = area(this.address, "data")
     this.cache = area(this.address, "cache")
@@ -146,7 +148,7 @@ class ProgramHandle extends CoreProgram {
 
   public async pinnedAt() {
     const answer = await wire.request(["pinned", this.address, "get"]) as [unknown]
-    return pinTime(answer[0])
+    return timeOrNull(answer[0])
   }
 
   public async pin(pinned = true) { await wire.request(["pinned", this.address, pinned ? "pin" : "unpin"]) }
@@ -157,9 +159,9 @@ class ProgramHandle extends CoreProgram {
     return answer[0]
   }
 
-  public async installed() {
-    const answer = await wire.request(["installed", this.address]) as [boolean]
-    return answer[0]
+  public async installedAt() {
+    const answer = await wire.request(["installedAt", this.address]) as [unknown]
+    return timeOrNull(answer[0])
   }
 
   public async processes() {
@@ -635,7 +637,7 @@ function programEvent(event: string, values: unknown[]): unknown {
   if (event === "processCreate") return process(values[0])
   if (event === "processExit") return { process: process(values[0]), ...exit(values[1], values[2]) }
   if (event === "uninstall") return { purge: values[0] === true }
-  if (event === "pin") return pinTime(values[0])
+  if (event === "pin") return timeOrNull(values[0])
   return undefined
 }
 
@@ -704,7 +706,7 @@ export const ServerEndpoint = CoreServerEndpoint
 /** Runtime constructor used to identify and type Server-visible Client Endpoint handles. */
 export const ClientEndpoint = CoreClientEndpoint
 
-/** A pin time as it travels, ISO text, as the time it names; anything else is no pin. */
-export function pinTime(value: unknown): Date | null {
+/** A time as it travels, ISO text, as the time it names; anything else, as `null`, is none. */
+export function timeOrNull(value: unknown): Date | null {
   return typeof value === "string" ? new Date(value) : null
 }

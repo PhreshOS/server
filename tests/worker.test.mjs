@@ -85,6 +85,7 @@ test("worker contract", async () => {
         reference: "worker-program-reference",
         identity: "worker-program",
         assetId: "worker-program-assets",
+        createdAt: "2026-10-11T00:00:00.000Z",
         name: "Worker Program",
         version: "0.0.0",
         description: null,
