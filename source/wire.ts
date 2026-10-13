@@ -43,6 +43,8 @@ class Wire {
   private readonly every = new Map<string, Set<Handler>>()
   private readonly answerers = new Map<string, Handler>()
   private readonly waiting = new Map<string, { values: unknown[], question: Question }[]>()
+  /** The questions being answered, by the address their asker waits at: aborted when it stops waiting. */
+  private readonly answering = new Map<string, AbortController>()
   private readonly impossible = new Map<string, Failure>()
 
   private identityPromise: Promise<{ process: string, reference: string }> | null = null
@@ -385,10 +387,13 @@ class Wire {
       return
     }
 
+    const asker = new AbortController()
+    this.answering.set(question.address, asker)
+
     let result: unknown
 
     try {
-      result = answerer(...message)
+      result = answerer(...message, asker.signal)
     } catch (error) {
       this.sendAnswer(route, question, event, failed(error))
       return
@@ -401,6 +406,7 @@ class Wire {
   }
 
   private sendAnswer(route: string, question: Question, event: string, outcome: RequestOutcome) {
+    this.answering.delete(question.address)
     this.send(route, "answer", question.address, question.id, event, outcome)
   }
 
@@ -413,7 +419,10 @@ class Wire {
     for (const held of waiting) this.receiveQuestion(route, held.values, held.question)
   }
 
+  /** The asker of a question stopped waiting: one being answered learns it, one not taken yet is dropped. */
   private forgetIncoming(question: string) {
+    this.answering.get(question)?.abort(new Error("The asker stopped waiting"))
+    this.answering.delete(question)
     for (const [key, waiting] of this.waiting) {
       const remaining = waiting.filter(entry => entry.question.address !== question)
       if (remaining.length) this.waiting.set(key, remaining)
