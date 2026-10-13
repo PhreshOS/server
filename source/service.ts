@@ -1,11 +1,10 @@
 import {
   ClientService as CoreClientService,
   ServerService as CoreServerService,
+  Service as CoreService,
   isServiceAddress,
   type ServiceLifecycleEvents,
   type ServiceLifecycle,
-  type ServiceProgramMetadata,
-  type IconSize,
   type Subscribable,
   type ServiceAddress
 } from "@phreshos/core"
@@ -47,16 +46,6 @@ class ServiceHandle {
   public async waitReady(timeout?: number) {
     await wire.request(["service-wait-ready", this.serviceAddress, timeout], timeout)
   }
-
-  public async programMetadata() {
-    const [value] = await wire.request(["service-program-metadata", this.serviceAddress]) as [unknown]
-    return parseServiceProgramMetadata(value)
-  }
-
-  public async programIcon(size: IconSize = "medium") {
-    const [value] = await wire.request(["service-program-icon", this.serviceAddress, size]) as [unknown]
-    return parseServiceProgramIcon(value)
-  }
 }
 
 class ServerHandler<EventsMap extends object = {}, Fallback = unknown> extends ServerService<EventsMap, Fallback> {
@@ -66,7 +55,7 @@ class ServerHandler<EventsMap extends object = {}, Fallback = unknown> extends S
   public override readonly events: Subscribable<EventsMap, Fallback>["events"]
   private readonly service: ServiceHandle
 
-  public constructor(private readonly serviceAddress: ServiceAddress<"server">) {
+  public constructor(private readonly serviceAddress: ServiceAddress<"server"> & Readonly<{ endpoint: "server" }>) {
     super()
     this.service = new ServiceHandle(serviceAddress)
     this.lifecycle = this.service.lifecycle
@@ -79,8 +68,6 @@ class ServerHandler<EventsMap extends object = {}, Fallback = unknown> extends S
   public override readonly publish = (event: string, payload: unknown = undefined) => this.service.publish(event, payload)
   public override address() { return this.serviceAddress }
   public override available() { return this.service.available() }
-  public override programMetadata() { return this.service.programMetadata() }
-  public override programIcon(size?: IconSize) { return this.service.programIcon(size) }
 
   public override waitReady(timeout?: number) { return this.service.waitReady(timeout) }
 
@@ -114,7 +101,7 @@ class ClientHandler<EventsMap extends object = {}, Fallback = unknown> extends C
   public override readonly events: Subscribable<EventsMap, Fallback>["events"]
   private readonly service: ServiceHandle
 
-  public constructor(private readonly serviceAddress: ServiceAddress<"client">) {
+  public constructor(private readonly serviceAddress: ServiceAddress<"client"> & Readonly<{ endpoint: "client" }>) {
     super()
     this.service = new ServiceHandle(serviceAddress)
     this.lifecycle = this.service.lifecycle
@@ -127,27 +114,46 @@ class ClientHandler<EventsMap extends object = {}, Fallback = unknown> extends C
   public override readonly publish = (event: string, payload: unknown = undefined) => this.service.publish(event, payload)
   public override address() { return this.serviceAddress }
   public override available() { return this.service.available() }
-  public override programMetadata() { return this.service.programMetadata() }
-  public override programIcon(size?: IconSize) { return this.service.programIcon(size) }
   public override waitReady(timeout?: number) { return this.service.waitReady(timeout) }
 }
 
-export function prepareService<EventsMap extends object = {}, Fallback = unknown>(address: ServiceAddress<"server">): ServerService<EventsMap, Fallback>
-export function prepareService<EventsMap extends object = {}, Fallback = unknown>(address: ServiceAddress<"client">): ClientService<EventsMap, Fallback>
-export function prepareService(address: ServiceAddress): ServerService | ClientService
-export function prepareService(address: ServiceAddress): ServerService | ClientService {
-  if (!isServiceAddress(address)) throw new Error("A complete Service address is required")
+/** Whichever Endpoint holds a Service name, for what both kinds share. */
+class AnyHandler<EventsMap extends object = {}, Fallback = unknown> extends CoreService<EventsMap, Fallback> {
+  public override readonly lifecycle: ServiceLifecycle
+  public override readonly subscribe: Subscribable<EventsMap, Fallback>["subscribe"]
+  public override readonly wait: Subscribable<EventsMap, Fallback>["wait"]
+  public override readonly events: Subscribable<EventsMap, Fallback>["events"]
+  private readonly service: ServiceHandle
 
-  const normalized = Object.freeze({
-    program: address.program,
-    process: address.process,
-    endpoint: address.endpoint
-  })
-  const identity = JSON.stringify([address.program, address.process, address.endpoint])
+  public constructor(private readonly serviceAddress: ServiceAddress) {
+    super()
+    this.service = new ServiceHandle(serviceAddress)
+    this.lifecycle = this.service.lifecycle
+    const events = new Events<EventsMap, Fallback>(...serviceEvents(serviceAddress, "events"))
+    this.subscribe = events.subscribe
+    this.wait = events.wait
+    this.events = events.events
+  }
 
-  return handles.obtain(`service:${identity}`, () => normalized.endpoint === "server"
-    ? new ServerHandler(normalized as ServiceAddress<"server">)
-    : new ClientHandler(normalized as ServiceAddress<"client">))
+  public override readonly publish = (event: string, payload: unknown = undefined) => this.service.publish(event, payload)
+  public override address() { return this.serviceAddress }
+  public override available() { return this.service.available() }
+  public override waitReady(timeout?: number) { return this.service.waitReady(timeout) }
+}
+
+/**
+ * The handle to a Service name, the same one for the same address: the Server holding it, the Client
+ * holding it, or whichever Endpoint holds it when no kind is named. It reaches the System only when used.
+ */
+export function serviceHandle(address: ServiceAddress): CoreService {
+  if (!isServiceAddress(address)) throw new Error("A Service is reached by its name, such as file-picker-v1, and optionally the kind of Endpoint")
+
+  const { name, endpoint } = address
+  const key = `service:${name}:${endpoint ?? "any"}`
+
+  if (endpoint === "server") return handles.obtain(key, () => new ServerHandler(Object.freeze({ name, endpoint })))
+  if (endpoint === "client") return handles.obtain(key, () => new ClientHandler(Object.freeze({ name, endpoint })))
+  return handles.obtain(key, () => new AnyHandler(Object.freeze({ name })))
 }
 
 function serviceEvents(address: ServiceAddress, scope: "lifecycle" | "events") {
@@ -157,23 +163,4 @@ function serviceEvents(address: ServiceAddress, scope: "lifecycle" | "events") {
       if (typeof event === "string") listener(event, payload)
     })
   ] as const satisfies ConstructorParameters<typeof Events>
-}
-
-function parseServiceProgramMetadata(value: unknown): ServiceProgramMetadata {
-  if (!value || typeof value !== "object") throw new Error("The System returned invalid Service Program metadata")
-
-  const metadata = value as { name?: unknown, version?: unknown }
-
-  if (typeof metadata.name !== "string" || typeof metadata.version !== "string") {
-    throw new Error("The System returned invalid Service Program metadata")
-  }
-
-  return Object.freeze({ name: metadata.name, version: metadata.version })
-}
-
-function parseServiceProgramIcon(value: unknown) {
-  if (!Array.isArray(value) || value.some(byte => typeof byte !== "number")) {
-    throw new Error("The System returned an invalid Service Program icon")
-  }
-  return new Blob([Uint8Array.from(value)], { type: "image/png" })
 }

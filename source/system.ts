@@ -6,7 +6,6 @@ import {
   type OpenTarget,
   parseSessionEndSnapshot,
   parseSystemProgramListOptions,
-  parseSystemServiceListOptions,
   parseAuthenticationRequirements,
   parseAuthenticationState,
   parsePermissions,
@@ -16,7 +15,6 @@ import {
   type ExecuteResult,
   type IconSize,
   type Launch,
-  type ServiceAddress,
   type System as CoreSystem,
   type AuthenticationCredentials,
   type SystemAuthentication,
@@ -26,15 +24,12 @@ import {
   type SystemProgram as CoreSystemProgram,
   type SystemProgramEvents,
   type SystemService,
-  type SystemServiceListOptions,
-  type SystemServiceEvents,
   type SystemProgramListOptions,
   type Session,
   type ProgramDefinition,
   type ShellOptions,
   type WritableAppearance
 } from "@phreshos/core"
-import type { ClientService, ServerService } from "./service.js"
 import Events from "./events.js"
 import {
   exit,
@@ -48,7 +43,7 @@ import { uploads } from "./uploads.js"
 import ServerAppearance from "./appearance.js"
 import wire from "./wire.js"
 import { systemOpening } from "./opening.js"
-import { prepareService } from "./service.js"
+import { serviceHandle } from "./service.js"
 import { systemLogs, systemStorage } from "./storage.js"
 import shell from "./shell.js"
 import network from "./network.js"
@@ -63,7 +58,7 @@ class SystemHandle implements CoreSystem {
   public readonly authentication: SystemAuthentication = new SystemAuthenticationHandle()
   public readonly permissions = systemPermissions
   public readonly logs = systemLogs()
-  public readonly service: SystemService = new SystemServiceHandle()
+  public readonly service = serviceHandle as SystemService
   public readonly uploads = uploads
   public readonly network = network
 
@@ -92,27 +87,6 @@ class SystemHandle implements CoreSystem {
     yield* shell(command, { ...options, signal })
   }
 
-}
-
-class SystemServiceHandle extends Events<SystemServiceEvents, never> implements SystemService {
-  public constructor() {
-    super(
-      (event, listener, impossible) => wire.on("host-service", event, (...values) => listener(prepareService(values[1] as ServiceAddress)), null, impossible),
-      observer => wire.onAll("host-service", (event, ...values) => {
-        if (typeof event === "string") observer(event, prepareService(values[1] as ServiceAddress))
-      })
-    )
-  }
-
-  public async list(options: SystemServiceListOptions = {}): Promise<(ServerService | ClientService)[]> {
-    const [addresses] = await wire.request(["host-service-list", parseSystemServiceListOptions(options)]) as [ServiceAddress[]]
-    return addresses.map(address => prepareService(address))
-  }
-
-  public prepare<EventsMap extends object = {}, Fallback = unknown>(address: ServiceAddress<"server">): ServerService<EventsMap, Fallback>
-  public prepare<EventsMap extends object = {}, Fallback = unknown>(address: ServiceAddress<"client">): ClientService<EventsMap, Fallback>
-  public prepare(address: ServiceAddress): ServerService | ClientService
-  public prepare(address: ServiceAddress) { return prepareService(address) }
 }
 
 class SystemProgramHandle extends Events<SystemProgramEvents, never> implements CoreSystemProgram {
