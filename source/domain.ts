@@ -4,6 +4,7 @@ import {
   Process as CoreProcess,
   Program as CoreProgram,
   ServerEndpoint as CoreServerEndpoint,
+  parseEndpointMetadata,
   parseEndpointReference,
   parseProcessSnapshot,
   parseProgramDefinition,
@@ -368,11 +369,11 @@ export class ServerTrafficHandle<EventsMap extends object = {}, Fallback = unkno
     return wire.observe(this.target, "server", "answer", null, (event, questionId, message) => {
       if (typeof event !== "string" || typeof questionId !== "string") return
 
-      const raw = message as { to?: EndpointReference | null, outcome?: AnswerOutcome<Result> }
+      const raw = message as { to?: unknown, outcome?: AnswerOutcome<Result> }
       subscriber({
         event,
         questionId,
-        message: { to: raw.to === null ? null : endpoint(raw.to), outcome: raw.outcome as AnswerOutcome<Result> }
+        message: { to: parseEndpointMetadata(raw.to ?? null), outcome: raw.outcome as AnswerOutcome<Result> }
       })
     }, impossible)
   }
@@ -408,7 +409,7 @@ class ServerEndpointHandle extends CoreServerEndpoint {
 
   public async start(launch: ServerLaunch = {}) { await wire.request(["start-endpoint", this.owner.address, "server", launch]) }
   public async stop() { await wire.request(["stop-endpoint", this.owner.address, "server"]) }
-  public async isService() { return (await wire.request(["is-service", "server", this.owner.address]) as [boolean])[0] }
+  public async service() { return (await wire.request(["endpoint-service", "server", this.owner.address]) as [string | false])[0] }
 
   public async waitReady(timeout?: number) {
     await wire.request(["wait-ready", this.owner.address, "server"], timeout)
@@ -474,7 +475,7 @@ class ClientEndpointHandle extends CoreClientEndpoint {
   }
 
   public async stop() { await wire.request(["stop-endpoint", this.owner.address, "client"]) }
-  public async isService() { return (await wire.request(["is-service", "client", this.owner.address]) as [boolean])[0] }
+  public async service() { return (await wire.request(["endpoint-service", "client", this.owner.address]) as [string | false])[0] }
   public async waitReady(timeout?: number) { await wire.request(["wait-ready", this.owner.address, "client"], timeout) }
 
 }
@@ -662,8 +663,8 @@ function numberOrNull(value: unknown) { return typeof value === "number" ? value
 function stringOrNull(value: unknown) { return typeof value === "string" ? value : null }
 
 export function trafficMessage(value: unknown): TrafficMessage {
-  const raw = value as { to?: EndpointReference | null, payload?: unknown }
-  return { to: raw.to === null ? null : endpoint(raw.to), payload: raw.payload }
+  const raw = value as { to?: unknown, payload?: unknown }
+  return { to: parseEndpointMetadata(raw.to ?? null), payload: raw.payload }
 }
 
 export function program(value: unknown): Program {

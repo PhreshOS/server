@@ -100,9 +100,9 @@ test("package contract", async () => {
   assert.equal(typeof context.name, "function")
   assert.equal(typeof context.client.window, "object")
   assert.equal("local" in context.client.window, false)
-  assert.equal(typeof context.isService, "function")
+  assert.equal(typeof context.service, "function")
   assert.equal("channel" in context, false)
-  assert.equal(typeof context.client.isService, "function")
+  assert.equal(typeof context.client.service, "function")
   assert.equal(typeof context.client.waitReady, "function")
   assert.equal(typeof system.appearance.snapshot, "function")
   assert.equal(typeof system.uploads.write, "function")
@@ -119,9 +119,8 @@ test("package contract", async () => {
   assert.equal(typeof system.authentication.state, "function")
   assert.equal(typeof system.authentication.setCredentials, "function")
   assert.equal(typeof system.authentication.signOutAllSessions, "function")
-  assert.equal(typeof system.service, "object")
-  assert.equal(typeof system.service.prepare, "function")
-  assert.equal(typeof system.service.list, "function")
+  assert.equal(typeof system.service, "function")
+  assert.equal("list" in system.service, false)
   assert.equal(typeof system.network.websocket, "function")
   assert.equal(typeof system.network.fetch, "function")
   assert.equal("fetch" in system, false)
@@ -134,19 +133,22 @@ test("package contract", async () => {
   assert.equal(typeof system.logs.query, "function")
   assert.equal(typeof system.logs.subscribe, "function")
   assert.equal("subscribe" in system, false)
-  const service = system.service.prepare({ program: "counter", process: "main", endpoint: "server" })
-  const clientService = system.service.prepare({ program: "counter", process: "main", endpoint: "client" })
-  assert.equal(service, system.service.prepare({ program: "counter", process: "main", endpoint: "server" }))
-  assert.equal(clientService, system.service.prepare({ program: "counter", process: "main", endpoint: "client" }))
-  assert.throws(() => system.service.prepare({ process: "main", endpoint: "server" }), /complete Service address/)
+  const service = system.service({ name: "counter-v1", endpoint: "server" })
+  const clientService = system.service({ name: "counter-v1", endpoint: "client" })
+  const eitherService = system.service({ name: "counter-v1" })
+  assert.equal(service, system.service({ name: "counter-v1", endpoint: "server" }))
+  assert.equal(clientService, system.service({ name: "counter-v1", endpoint: "client" }))
+  assert.equal(eitherService, system.service({ name: "counter-v1" }))
+  assert.throws(() => system.service({ program: "counter", process: "main", endpoint: "server" }), /reached by its name/)
   assert(service instanceof Service)
   assert(service instanceof ServerService)
   assert(clientService instanceof Service)
   assert(clientService instanceof ClientService)
-  assert.deepEqual(service.address(), { program: "counter", process: "main", endpoint: "server" })
+  assert(eitherService instanceof Service)
+  assert.equal(eitherService instanceof ServerService || eitherService instanceof ClientService, false)
+  assert.deepEqual(service.address(), { name: "counter-v1", endpoint: "server" })
   assert.equal(typeof service.available, "function")
-  assert.equal(typeof service.programMetadata, "function")
-  assert.equal(typeof service.programIcon, "function")
+  assert.equal("programMetadata" in service, false)
   assert.equal(typeof service.waitReady, "function")
   assert.equal(typeof clientService.waitReady, "function")
   assert.equal(typeof clientService.publish, "function")
@@ -163,7 +165,7 @@ test("package contract", async () => {
     writeFileSync(
       join(consumer, "startup.mjs"),
       `import { system } from "@phreshos/server"
-  system.service.prepare({ program: "counter", process: "main", endpoint: "server" })
+  system.service({ name: "counter-v1", endpoint: "server" })
   setTimeout(() => process.exit(0), 25)
   `
     )
@@ -179,7 +181,7 @@ test("package contract", async () => {
     writeFileSync(
       join(consumer, "consumer.ts"),
       `import { context, system } from "@phreshos/server"
-  import { ClientEndpoint, ServerEndpoint, type Appearance, type Endpoint, type FileStat, type Permission, type PermissionRequest, type Process, type Program, type ServerService, type ShellEvent, type SystemUploads, type Upload, type WritableContent } from "@phreshos/core"
+  import { ClientEndpoint, ServerEndpoint, type Appearance, type Endpoint, type EndpointMetadata, type FileStat, type Permission, type PermissionRequest, type Process, type Program, type ServerService, type ShellEvent, type SystemUploads, type Upload, type WritableContent } from "@phreshos/core"
   // @ts-expect-error the runtime object is named context
   import { current } from "@phreshos/server"
   // @ts-expect-error shared domains are imported from Core, not republished by an environment SDK
@@ -200,18 +202,21 @@ test("package contract", async () => {
   const homeFile: Promise<string> = system.storage.file("example.txt").text()
   // @ts-expect-error selecting a file requires at least one path segment
   system.storage.file()
-  const counter: ServerService<CounterEvents> = system.service.prepare<CounterEvents>({ program: "counter", process: "main", endpoint: "server" })
+  const counter: ServerService<CounterEvents> = system.service<CounterEvents>({ name: "counter-v1", endpoint: "server" })
   const counterReady: Promise<void> = counter.waitReady(10_000)
-  const clientService = system.service.prepare({ program: "counter", process: "main", endpoint: "client" })
+  const clientService = system.service({ name: "counter-v1", endpoint: "client" })
   const counterStop = counter.subscribe("change", value => void value)
   const counterLifecycleStop = counter.lifecycle.subscribe("available", () => undefined)
   const counterAnswer: Promise<number> = counter.ask<number>("value")
-  const serviceRole: Promise<boolean> = context.isService()
+  const serviceRole: Promise<string | false> = context.service()
   const processName: Promise<string | null> = context.name()
-  const stopAnswer = context.answer("outside", message => {
-    const sender: Endpoint | null = message.from
-    if (sender) void sender.process()
-    return sender ? "endpoint" : "outside"
+  const stopAnswer = context.answer("outside", async message => {
+    const sender: EndpointMetadata | null = message.from
+    if (sender === null) return "outside"
+    // A handle is reached through its Process, under permissions: null when it may not be seen.
+    const process: Process | null = await system.process.find(sender.process)
+    const endpoint: Endpoint | undefined = process?.[sender.endpoint]
+    return sender.program.name + " " + sender.endpoint + " " + (endpoint ? "reachable" : "unseen")
   })
   const program = await context.program()
   const systemLogRows: Promise<Record<string, unknown>[]> = system.logs.query("select * from logs where level = ?", ["error"])
@@ -223,8 +228,6 @@ test("package contract", async () => {
   const declaredNetwork = program.declaredPermissions.network
   const agent: Promise<string | null> = program.agent()
   const definition = program.definition()
-  const serviceMetadata = counter.programMetadata()
-  const serviceIcon = counter.programIcon("small")
   const storedPermission = program.permissions.get("all")
   const permissions = program.permissions.all()
   const storedAllows: Promise<boolean> = program.permissions.allows("network", ["https://api.example.com"])
@@ -247,14 +250,14 @@ test("package contract", async () => {
   context.permissions.request("all", ["read"])
   const shared: Promise<Process> = program.findOrCreateProcess({
     name: "shared-server",
-    server: { service: true },
+    server: { service: "shared-v1" },
     client: false
   })
   const stop = (await shared).client.lifecycle.subscribe("stop", () => undefined)
   const client: ClientEndpoint = context.client
   const start: Promise<void> = client.start({ title: "Prepared title" })
   const currentProcess = await context.process()
-  const serverStart: Promise<void> = currentProcess.server.start({ service: true })
+  const serverStart: Promise<void> = currentProcess.server.start({ service: "counter-v1" })
   // @ts-expect-error permissions belong to the Program, never one Process
   currentProcess.permissions
   const systemPrograms: Promise<Program[]> = system.program.list()

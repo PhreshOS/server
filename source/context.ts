@@ -1,15 +1,16 @@
+import { parseEndpointMetadata } from "@phreshos/core"
 import type {
   Answerer as CoreAnswerer,
   ServerContext as CoreServerContext,
   ContextEvents as CoreContextEvents,
   ContextMessage as CoreContextMessage,
+  QuestionMessage,
   EndpointLifecycle,
   ClientLaunch
 } from "@phreshos/core"
 import {
   ClientEndpoint,
   TrafficHandle,
-  endpoint,
   endpointLifecycle,
   endpointEvents,
   process,
@@ -17,9 +18,7 @@ import {
   window,
   type Process,
   type ProcessRecord,
-  type ProgramRecord,
-  type Endpoint,
-  type EndpointReference
+  type ProgramRecord
 } from "./domain.js"
 import Events from "./events.js"
 import wire from "./wire.js"
@@ -30,10 +29,10 @@ import { contextPermissions } from "./permissions.js"
 type ContextClient<Events extends object = {}, Fallback = unknown> = ClientEndpoint<Events, Fallback>
 
 /** One value addressed to the current Server Endpoint, with a server-visible sender. */
-type ContextMessage<Payload = unknown> = CoreContextMessage<Payload, Endpoint | null>
+type ContextMessage<Payload = unknown> = CoreContextMessage<Payload>
 
 /** Applies the server-visible sender envelope to known Context events. */
-type ContextEvents<Events extends object> = CoreContextEvents<Events, Endpoint | null>
+type ContextEvents<Events extends object> = CoreContextEvents<Events>
 
 /** Handles one question addressed to the current Server Endpoint. */
 type Answerer<Payload = unknown, Result = undefined> = CoreAnswerer<Payload, Result>
@@ -73,7 +72,7 @@ class ContextClientHandle extends ClientEndpoint {
   }
 
   public async stop() { await wire.request(["stop-endpoint", undefined, "client"]) }
-  public async isService() { return (await wire.request(["is-service", "client"]) as [boolean])[0] }
+  public async service() { return (await wire.request(["endpoint-service", "client"]) as [string | false])[0] }
   public async waitReady(timeout?: number) { await wire.request(["wait-ready", undefined, "client"], timeout) }
 }
 
@@ -113,7 +112,7 @@ class ServerContextHandle extends Events<ContextEvents<{}>, ContextMessage> impl
   }
 
   public answer<Payload = unknown, Result = undefined>(event: string, answerer: Answerer<Payload, Result>) {
-    return wire.answer("end-end", event, value => answerer(contextMessage(value) as ContextMessage<Payload>))
+    return wire.answer("end-end", event, (value, signal) => answerer({ ...contextMessage(value), signal: signal as AbortSignal } as QuestionMessage<Payload>))
   }
 
   public process() { return owner() }
@@ -141,7 +140,7 @@ class ServerContextHandle extends Events<ContextEvents<{}>, ContextMessage> impl
   public async opened() { return (await owner()).opened }
 
   public async stop() { await wire.request(["stop-current"]) }
-  public async isService() { return (await wire.request(["is-service"]) as [boolean])[0] }
+  public async service() { return (await wire.request(["endpoint-service"]) as [string | false])[0] }
   public publish(event: string, payload: unknown = undefined) { wire.send("end-host", "emit", event, payload) }
 }
 
@@ -151,8 +150,8 @@ async function currentAddress() {
 }
 
 function contextMessage(value: unknown): ContextMessage {
-  const raw = value as { from?: EndpointReference | null, payload?: unknown }
-  return { from: raw.from ? endpoint(raw.from) : null, payload: raw.payload }
+  const raw = value as { from?: unknown, payload?: unknown }
+  return { from: parseEndpointMetadata(raw.from ?? null), payload: raw.payload }
 }
 
 /** Inbound events, owner hierarchy, and paired Client Endpoint for this Server runtime. */
